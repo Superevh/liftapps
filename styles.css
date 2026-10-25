@@ -8,7 +8,7 @@
   --c-ritual: #CCA06A; --c-facil: #DBBE94; --c-plan: #B08559; --c-flow: #7FA48A; --c-team: #A9876A;
   --live: #3E6E57; --live-bg: rgba(127,164,138,.18);
   --display: "Noto Serif SC", "Songti SC", Georgia, serif;
-  --body: Inter, "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+  --body: Inter, "Noto Sans SC", "PingFang SC", system-ui, sans-serif;
   --radius: 18px;
   color-scheme: light;
 }
@@ -43,7 +43,11 @@ img { display: block; max-width: 100%; }
 .nav-links { display: flex; gap: 26px; margin-left: auto; font-size: 14px; }
 .nav-links a { text-decoration: none; color: var(--ink-2); }
 .nav-links a:hover { color: var(--ink); }
-@media (max-width: 640px) { .nav-links { display: none; } .nav .btn { margin-left: auto; } }
+.lang { display: flex; padding: 3px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--card); }
+.lang button { font: inherit; font-size: 12.5px; border: 0; background: transparent; color: var(--ink-3); padding: 5px 11px; border-radius: 999px; cursor: pointer; }
+.lang button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.lang button:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; }
+@media (max-width: 640px) { .nav-links { display: none; } .lang { margin-left: auto; } }
 
 /* Hero */
 .hero { position: relative; overflow: hidden; padding-block: 72px 80px; }
@@ -62,20 +66,20 @@ img { display: block; max-width: 100%; }
 .facts { display: flex; flex-wrap: wrap; gap: 32px; margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line); }
 .fact b { display: block; font-family: var(--display); font-size: 28px; color: var(--gold-ink); line-height: 1.1; font-variant-numeric: tabular-nums; }
 .fact span { font-size: 12.5px; color: var(--ink-3); }
-.icon-wall { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
-.icon-wall .tile { width: 100%; height: auto; aspect-ratio: 1; animation: rise .7s cubic-bezier(.2,.7,.2,1) both; animation-delay: var(--d, 0s); }
+.icon-wall { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 22px 16px; align-items: start; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
 @media (max-width: 860px) { .hero-grid { grid-template-columns: 1fr; gap: 40px; } .hero { padding-block: 48px 56px; } }
-@media (max-width: 480px) { .icon-wall { grid-template-columns: repeat(4, 1fr); gap: 10px; } .icon-wall .tile:nth-child(n+17) { display: none; } }
+@media (max-width: 480px) { .icon-wall { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px 10px; } .wall-name { font-size: 11px; } .wall-role { display: none; } }
 
-/* App tile: shared light icon template */
-.tile { position: relative; width: 52px; height: 52px; border-radius: 26%; flex: none; overflow: hidden;
-  background: linear-gradient(160deg, #FFFDF8 10%, #F1E6D3);
-  box-shadow: inset 0 0 0 1px rgba(140,97,58,.16), 0 8px 18px -12px rgba(106,71,45,.45); transition: transform .25s; }
-.tile::before { content: ""; position: absolute; inset: auto 0 0 0; height: 4px; background: var(--cat); }
-.tile svg.glyph { position: absolute; inset: 22%; width: 56%; height: 56%; fill: none; stroke: var(--gold-ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.tile svg.chev { position: absolute; top: 9%; right: 9%; width: 20%; height: 20%; fill: none; stroke: var(--gold); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-.icon-wall .tile:hover { transform: translateY(-3px); }
+/* App icons (icons.js) */
+.licon { display: block; width: 56px; height: 56px; flex: none; filter: drop-shadow(0 8px 12px rgba(106,71,45,.18)); transition: transform .3s cubic-bezier(.2,.7,.2,1); }
+.wall-item { display: grid; justify-items: center; gap: 2px; text-decoration: none; text-align: center; min-width: 0; animation: rise .7s cubic-bezier(.2,.7,.2,1) both; animation-delay: var(--d, 0s); }
+.wall-item .licon { width: 100%; height: auto; aspect-ratio: 1; margin-bottom: 6px; }
+.wall-item:hover .licon { transform: translateY(-4px) rotate(-3deg); }
+.wall-name { font-size: 12.5px; font-weight: 500; color: var(--ink); white-space: nowrap; }
+.wall-name i, .name i { font-style: normal; color: var(--gold-ink); }
+.wall-role { font-size: 11px; line-height: 1.35; color: var(--ink-3); max-width: 100%; text-wrap: balance; }
+.wall-item:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 4px; border-radius: 12px; }
 
 /* Sections */
 .section { padding-block: 88px; }
@@ -97,10 +101,9 @@ img { display: block; max-width: 100%; }
 .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .card { position: relative; display: grid; grid-template-rows: auto 1fr auto; gap: 12px; padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); min-width: 0; transition: transform .25s, box-shadow .25s, border-color .25s; }
 .card:hover { transform: translateY(-2px); border-color: var(--line-2); box-shadow: 0 16px 32px -24px rgba(106,71,45,.5); }
-.card:hover .tile { transform: rotate(-4deg); }
+.card:hover .licon { transform: rotate(-4deg) scale(1.04); }
 .card-top { display: flex; gap: 14px; align-items: center; }
 .name { font-family: var(--display); font-size: 21px; font-weight: 700; line-height: 1.15; }
-.name i { font-style: normal; color: var(--gold); }
 .role { font-size: 13px; color: var(--ink-3); }
 .desc { font-size: 14px; color: var(--ink-2); }
 .card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
@@ -139,3 +142,8 @@ img { display: block; max-width: 100%; }
 .reveal { opacity: 0; transform: translateY(16px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.7,.2,1); transition-delay: var(--d, 0s); }
 .reveal.in { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
+
+/* Chinese mode: slightly larger line height, no letter-spaced caps on CJK */
+html[lang="zh-CN"] body { line-height: 1.75; }
+html[lang="zh-CN"] .hero h1 { letter-spacing: 0; line-height: 1.12; }
+html[lang="zh-CN"] .eyebrow { letter-spacing: .12em; }

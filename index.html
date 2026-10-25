@@ -9,20 +9,23 @@
 <link rel="icon" href="assets/favicon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
 <header class="nav-wrap">
   <nav class="nav wrap">
-    <a href="#top" class="logo" aria-label="AIYun home"><img src="assets/aiyun-mark.png" alt="AIYun" /></a>
+    <a href="#top" class="logo" aria-label="AIYun"><img src="assets/aiyun-mark.png" alt="AIYun" /></a>
     <div class="nav-links">
-      <a href="#apps">Apps</a>
-      <a href="#shared">How it works</a>
-      <a href="#about">About</a>
+      <a href="#apps" data-i18n="navApps">Apps</a>
+      <a href="#shared" data-i18n="navHow">How it works</a>
+      <a href="#about" data-i18n="navAbout">About</a>
     </div>
-    <a class="btn btn-gold btn-sm" href="#apps">Browse apps</a>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="true">EN</button>
+      <button type="button" data-lang="zh" aria-pressed="false">中文</button>
+    </div>
   </nav>
 </header>
 
@@ -31,36 +34,35 @@
     <div class="hero-glow" aria-hidden="true"><span></span><span></span><span></span></div>
     <div class="wrap hero-grid">
       <div>
-        <p class="eyebrow">AIYun · Lift Apps</p>
-        <h1>Tools that <span class="gold">lift</span><br />your team.</h1>
-        <p class="lede">A family of light, AI-assisted apps for agile teams: retros, estimation, health checks, boards and forecasts. One account, one look, nothing to install.</p>
-        <p class="zh">AI云 Lift 系列：让每一次团队协作，都被托举。</p>
+        <p class="eyebrow" data-i18n="eyebrow">AIYun · Lift Apps</p>
+        <h1 data-i18n-html="heroTitle">Tools that <span class="gold">lift</span><br />your team.</h1>
+        <p class="lede" data-i18n="lede">A family of light, AI-assisted apps for agile teams: retros, estimation, health checks, boards and forecasts. One account, one look, nothing to install.</p>
         <div class="cta">
-          <a class="btn btn-gold" href="#apps">See all apps</a>
-          <a class="btn btn-ghost" href="#shared">How it works →</a>
+          <a class="btn btn-gold" href="#apps" data-i18n="ctaApps">See all apps</a>
+          <a class="btn btn-ghost" href="#shared" data-i18n="ctaHow">How it works →</a>
         </div>
         <div class="facts">
-          <div class="fact"><b id="f-total">22</b><span>apps in the family</span></div>
-          <div class="fact"><b id="f-groups">5</b><span>groups</span></div>
-          <div class="fact"><b>1</b><span>account for all</span></div>
+          <div class="fact"><b id="f-total">22</b><span data-i18n="factApps">apps in the family</span></div>
+          <div class="fact"><b id="f-groups">5</b><span data-i18n="factGroups">groups</span></div>
+          <div class="fact"><b>1</b><span data-i18n="factAccount">account for all</span></div>
         </div>
       </div>
-      <div class="icon-wall" id="iconWall" aria-hidden="true"></div>
+      <div class="icon-wall" id="iconWall"></div>
     </div>
   </section>
 
   <section id="apps" class="section">
     <div class="wrap">
       <div class="sec-head">
-        <p class="eyebrow"><b>01</b> / The family</p>
-        <h2>Every app is named for its job.</h2>
-        <p>What it does, plus Lift. Pick one for your next ceremony, or use them together.</p>
+        <p class="eyebrow"><b>01</b> / <span data-i18n="appsEyebrow">The family</span></p>
+        <h2 data-i18n="appsTitle">Every app is named for its job.</h2>
+        <p data-i18n="appsLede">What it does, plus Lift. Pick one for your next ceremony, or use them together.</p>
       </div>
       <div class="filters" role="group" aria-label="Filter apps">
-        <button type="button" data-f="all" aria-pressed="true">All</button>
-        <button type="button" data-f="live" aria-pressed="false">Available</button>
-        <button type="button" data-f="building" aria-pressed="false">In development</button>
-        <button type="button" data-f="planned" aria-pressed="false">Planned</button>
+        <button type="button" data-f="all" aria-pressed="true" data-i18n="fAll">All</button>
+        <button type="button" data-f="live" aria-pressed="false" data-i18n="fLive">Available</button>
+        <button type="button" data-f="building" aria-pressed="false" data-i18n="fBuilding">In development</button>
+        <button type="button" data-f="planned" aria-pressed="false" data-i18n="fPlanned">Planned</button>
       </div>
       <div id="groups"></div>
     </div>
@@ -69,14 +71,14 @@
   <section id="shared" class="section soft">
     <div class="wrap">
       <div class="sec-head">
-        <p class="eyebrow"><b>02</b> / How it works</p>
-        <h2>One family, not twenty-two logins.</h2>
+        <p class="eyebrow"><b>02</b> / <span data-i18n="howEyebrow">How it works</span></p>
+        <h2 data-i18n="howTitle">One family, not twenty-two logins.</h2>
       </div>
       <div class="pillars">
-        <div class="pillar"><span class="pill-num">01</span><h3>One account</h3><p>Sign in once and every Lift app knows your team, boards and history.</p></div>
-        <div class="pillar"><span class="pill-num">02</span><h3>AI where it helps</h3><p>Grouping retro cards, flagging stories too big to estimate, explaining a forecast. Never AI for its own sake.</p></div>
-        <div class="pillar"><span class="pill-num">03</span><h3>Share a link</h3><p>Guests join from a link in the browser. No install, no seat to buy for a one-off workshop.</p></div>
-        <div class="pillar"><span class="pill-num">04</span><h3>Apps that connect</h3><p>Actions from a retro land on your board; a story map exports to your sprint.</p></div>
+        <div class="pillar"><span class="pill-num">01</span><h3 data-i18n="p1t">One account</h3><p data-i18n="p1">Sign in once and every Lift app knows your team, boards and history.</p></div>
+        <div class="pillar"><span class="pill-num">02</span><h3 data-i18n="p2t">AI where it helps</h3><p data-i18n="p2">Grouping retro cards, flagging stories too big to estimate, explaining a forecast. Never AI for its own sake.</p></div>
+        <div class="pillar"><span class="pill-num">03</span><h3 data-i18n="p3t">Share a link</h3><p data-i18n="p3">Guests join from a link in the browser. No install, no seat to buy for a one-off workshop.</p></div>
+        <div class="pillar"><span class="pill-num">04</span><h3 data-i18n="p4t">Apps that connect</h3><p data-i18n="p4">Actions from a retro land on your board; a story map exports to your sprint.</p></div>
       </div>
     </div>
   </section>
@@ -84,11 +86,11 @@
   <section id="about" class="section">
     <div class="wrap about">
       <div>
-        <p class="eyebrow"><b>03</b> / About</p>
-        <h2>Made by AIYun.</h2>
+        <p class="eyebrow"><b>03</b> / <span data-i18n="aboutEyebrow">About</span></p>
+        <h2 data-i18n="aboutTitle">Made by AIYun.</h2>
       </div>
       <div class="about-copy">
-        <p>AIYun (AI云) builds practical AI products. Lift Apps grew out of years of coaching agile teams and wanting tools that feel calm, look good and do the boring parts for you.</p>
+        <p data-i18n="aboutBody">AIYun (AI云) builds practical AI products. Lift Apps grew out of years of coaching agile teams and wanting tools that feel calm, look good and do the boring parts for you.</p>
         <p class="muted">Let AI lift us higher.</p>
       </div>
     </div>
@@ -98,11 +100,12 @@
 <footer class="footer">
   <div class="wrap footer-inner">
     <img src="assets/aiyun-mark.png" alt="AIYun" class="footer-logo" />
-    <span>Lift Apps™ by AIYun · Explore · Connect · Create</span>
+    <span data-i18n="footer">Lift Apps™ by AIYun · Explore · Connect · Create</span>
     <span>© 2026 AIYun</span>
   </div>
 </footer>
 
+<script src="icons.js"></script>
 <script src="apps.js"></script>
 <script src="main.js"></script>
 </body>
