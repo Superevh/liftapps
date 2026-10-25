@@ -147,3 +147,14 @@ img { display: block; max-width: 100%; }
 html[lang="zh-CN"] body { line-height: 1.75; }
 html[lang="zh-CN"] .hero h1 { letter-spacing: 0; line-height: 1.12; }
 html[lang="zh-CN"] .eyebrow { letter-spacing: .12em; }
+
+/* App intro pages */
+.app-hero { padding-block: 64px 72px; }
+.app-hero-grid { position: relative; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; align-items: center; }
+.app-hero-icon .licon { width: 100%; height: auto; aspect-ratio: 1; filter: drop-shadow(0 22px 30px rgba(106,71,45,.25)); animation: rise .8s cubic-bezier(.2,.7,.2,1) both; }
+.app-title { font-size: clamp(44px, 6vw, 76px); line-height: 1.05; font-weight: 900; letter-spacing: -.02em; margin-top: 12px; }
+.app-title i { font-style: normal; color: var(--gold); }
+.app-role { font-size: 15px; color: var(--ink-3); margin: 6px 0 18px; }
+.app-status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; font-size: 13.5px; color: var(--ink-2); }
+.pillars.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 760px) { .app-hero-grid { grid-template-columns: 1fr; gap: 24px; } .app-hero-icon { width: 128px; } .pillars.three { grid-template-columns: 1fr; } }

@@ -1,5 +1,5 @@
 // The Lift Apps catalogue. Edit this file to add an app or change its status.
-// status: live (has a url) | building | planned
+// status: live (has a url, opens the app directly) | building | planned (both get an intro page at /<key>/)
 const GROUPS = [
   { id: "ritual", name: "Team rituals", zh: "团队仪式", note: "The ceremonies every agile team runs", noteZh: "每个敏捷团队都会开的会", cat: "var(--c-ritual)" },
   { id: "facil", name: "Facilitation", zh: "引导与互动", note: "Workshops, meetings and live audiences", noteZh: "工作坊、会议和现场互动", cat: "var(--c-facil)" },
@@ -10,11 +10,11 @@ const GROUPS = [
 
 const APPS = [
   { g: "ritual", key: "retro", word: "Retro", zh: "复盘", role: "Retrospectives", desc: "Themed retro boards with voting and action items. AI groups the cards and drafts the actions.", roleZh: "团队复盘", descZh: "主题复盘看板，带投票和行动项。AI 自动归类卡片、起草行动项。", status: "live", url: "https://fun-retro.com" },
-  { g: "ritual", key: "point", word: "Point", zh: "估点", role: "Planning poker", desc: "Estimate stories together with cards and a reveal, and see which stories are too vague to size.", roleZh: "计划扑克", descZh: "大家一起出牌估点、同时亮牌，还能看出哪些故事太模糊、没法估。", status: "building" },
+  { g: "ritual", key: "point", word: "Point", zh: "估点", role: "Planning poker", desc: "Estimate stories together with cards and a simultaneous reveal.", roleZh: "计划扑克", descZh: "大家一起出牌估点、同时亮牌。", status: "live", url: "https://fun-retro.com/#/poker" },
   { g: "ritual", key: "standup", word: "Standup", zh: "站会", role: "Async standups", desc: "Yesterday, today and blockers without the meeting. Only the blockers get posted.", roleZh: "异步站会", descZh: "不开会也能收集昨天、今天和阻碍，只把阻碍推送出来。", status: "planned" },
-  { g: "ritual", key: "pulse", word: "Pulse", zh: "健康度", role: "Team health checks", desc: "Run a health check each sprint and watch the trend, with a plain-language summary of what moved.", roleZh: "团队健康度", descZh: "每个迭代做一次健康检查，看趋势变化，AI 用一句话说明哪里变了。", status: "building" },
-  { g: "ritual", key: "topic", word: "Topic", zh: "精益咖啡", role: "Lean Coffee", desc: "Propose topics, dot-vote, and time-box the conversation.", roleZh: "精益咖啡", descZh: "提议话题、点投票、限时讨论。", status: "building" },
-  { g: "ritual", key: "kudo", word: "Kudo", zh: "致谢", role: "Kudos walls", desc: "Thank-you cards and celebration boards for farewells, launches and milestones.", roleZh: "致谢墙", descZh: "感谢卡和庆祝墙，适合欢送、上线和里程碑。", status: "building" },
+  { g: "ritual", key: "pulse", word: "Pulse", zh: "健康度", role: "Team health checks", desc: "Run a team health check and see at a glance where the team stands.", roleZh: "团队健康度", descZh: "做一次团队健康检查，一眼看清团队现状。", status: "live", url: "https://fun-retro.com/#/health" },
+  { g: "ritual", key: "topic", word: "Topic", zh: "精益咖啡", role: "Lean Coffee", desc: "Propose topics, dot-vote, and time-box the conversation.", roleZh: "精益咖啡", descZh: "提议话题、点投票、限时讨论。", status: "live", url: "https://fun-retro.com/#/leancoffee" },
+  { g: "ritual", key: "kudo", word: "Kudo", zh: "致谢", role: "Kudos walls", desc: "Thank-you cards and celebration boards for farewells, launches and milestones.", roleZh: "致谢墙", descZh: "感谢卡和庆祝墙，适合欢送、上线和里程碑。", status: "live", url: "https://fun-retro.com/#/kudos" },
   { g: "facil", key: "vote", word: "Vote", zh: "投票", role: "Live polls & Q&A", desc: "Your audience joins with a code and results update live. AI clusters the questions.", roleZh: "实时投票与问答", descZh: "观众输入代码加入，结果实时更新，AI 自动归类提问。", status: "building" },
   { g: "facil", key: "quiz", word: "Quiz", zh: "竞答", role: "Live quizzes", desc: "Timed questions and a live leaderboard for icebreakers and training.", roleZh: "实时竞答", descZh: "限时答题加实时排行榜，适合破冰和培训。", status: "building" },
   { g: "facil", key: "sketch", word: "Sketch", zh: "白板", role: "Whiteboard", desc: "A hand-drawn canvas for diagrams and workshops, with ready-made agile templates.", roleZh: "在线白板", descZh: "手绘风画布，画图、开工作坊，内置敏捷模板。", status: "building" },
