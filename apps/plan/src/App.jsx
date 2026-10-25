@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLang, getLang } from './i18n.js'
 import { load, save, clean, sampleRoadmap, blankRoadmap, uid, encodeShare, decodeShare, SHARE_PREFIX, PALETTE } from './store.js'
-import { addMonths, addDays } from './dates.js'
+import { addMonths, addDays, today, parts } from './dates.js'
 import Timeline from './Timeline.jsx'
-import Board from './Board.jsx'
+import Board, { bucket, movePatch } from './Board.jsx'
 import Panel from './Panel.jsx'
 import Icon from './icons.jsx'
 
@@ -92,6 +92,26 @@ export default function App() {
     const it = { id: uid(), laneId, title: '', start, end: addDays(addMonths(start, 1), -1), status: 'planned', note: '', link: '' }
     updateRm(r => ({ ...r, items: [...r.items, it] }))
     setSelId(it.id)
+  }
+  // Dropped on the Now / Next / Later board: apply the column's date/status rule and persist the column order.
+  const moveItem = (id, col, orderedIds) => {
+    const it = rm.items.find(i => i.id === id)
+    if (!it || readOnly) return
+    const now = today()
+    const from = bucket(it, now, addMonths(now, 3))
+    const patch = from === col ? {} : movePatch(it, col, now)
+    const ord = new Map(orderedIds.map((x, i) => [x, i]))
+    updateRm(r => ({ ...r, items: r.items.map(i => {
+      let n = i.id === id ? { ...i, ...patch } : i
+      if (ord.has(i.id) && n.order !== ord.get(i.id)) n = { ...n, order: ord.get(i.id) }
+      return n
+    }) }))
+    if (from === col) return
+    const label = { now: t.now, next: t.next, later: t.later, done: t.doneCol }[col]
+    const bits = []
+    if (patch.start) { const { y, m, d } = parts(patch.start); bits.push(t.startSet(t.dayMonth(y, m, d, y !== parts(now).y))) }
+    if (patch.status) bits.push(t.statusSet(t.st[patch.status]))
+    flash([t.movedTo(label), ...bits].join(' · '))
   }
   const deleteItem = id => {
     const it = rm.items.find(i => i.id === id)
@@ -242,7 +262,7 @@ export default function App() {
           <Timeline rm={rm} t={t} readOnly={readOnly} monthW={monthW} laneW={laneW} selId={selId} todayToken={todayToken}
             onSelect={setSelId} onAdd={addItem} onUpdateItem={updateItem} lanes={laneOps} />
         )}
-        {rm && view === 'board' && <Board rm={rm} t={t} showDone={showDone} selId={selId} onSelect={setSelId} />}
+        {rm && view === 'board' && <Board rm={rm} t={t} showDone={showDone} selId={selId} readOnly={readOnly} onSelect={setSelId} onMove={moveItem} />}
         {sel && <Panel key={sel.id} item={sel} rm={rm} t={t} readOnly={readOnly} onChange={p => updateItem(sel.id, p)} onDelete={() => deleteItem(sel.id)} onClose={() => setSelId(null)} />}
       </main>
 

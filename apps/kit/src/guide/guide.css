@@ -1,0 +1,42 @@
+/* ---------- EstimateLift: how teams estimate ---------- */
+.tool-card.eg { padding: 0; }
+.eg > summary { display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px; cursor: pointer; list-style: none; }
+.eg > summary::-webkit-details-marker { display: none; }
+.eg-ico { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--gold-soft); color: var(--brand); }
+.eg-head { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.eg-head h2 { margin: 0; font-size: 20px; }
+.eg-toggle { flex: none; font-size: 13px; font-weight: 600; color: var(--brand); padding-top: 4px; }
+.eg-toggle::after { content: ' ▾'; }
+.eg:not([open]) .eg-toggle::after { content: ' ▸'; }
+.eg-body { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 16px; }
+.eg-group h3 { font-family: var(--font-ui); font-size: 11.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--brand); margin-bottom: 8px; }
+.eg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; align-items: start; }
+.eg-method { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.eg-method[open] { border-color: var(--gold-line); background: var(--panel-2); }
+.eg-method > summary { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; cursor: pointer; list-style: none; }
+.eg-method > summary::-webkit-details-marker { display: none; }
+.eg-method > summary b { font-weight: 600; font-size: 14.5px; color: var(--heading); }
+.eg-what { font-size: 13px; color: var(--ink-soft); line-height: 1.45; }
+.eg-more { font-size: 12px; font-weight: 600; color: var(--brand); }
+.eg-more::after { content: ' ▸'; }
+.eg-method[open] .eg-more::after { content: ' ▾'; }
+.eg-method dl { margin: 0; padding: 0 14px; display: grid; grid-template-columns: 1fr; gap: 2px; font-size: 13px; }
+.eg-method dt { font-weight: 600; color: var(--heading); margin-top: 6px; }
+.eg-method dd { margin: 0; color: var(--ink-soft); line-height: 1.45; }
+.eg-tool { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px 12px; }
+.eg-tool .link-btn { color: var(--brand); font-weight: 600; font-size: 13px; text-decoration: underline; }
+.eg-pert { border-radius: 14px; padding: 14px 16px; background: var(--panel-2); border: 1px solid var(--line); }
+.eg-pert h3 { font-size: 17px; }
+.eg-pert-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 6px; }
+.eg-pert-out { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 12px 0 0; }
+.eg-pert-out div { padding: 10px 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.eg-pert-out dt { font-size: 12px; color: var(--ink-soft); }
+.eg-pert-out dd { margin: 2px 0 0; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--heading); }
+.eg-formula { margin: 10px 0 0; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) {
+  .eg > summary { flex-wrap: wrap; padding: 16px; }
+  .eg-toggle { width: 100%; padding-top: 0; }
+  .eg-body { padding: 0 16px 16px; }
+  .eg-grid { grid-template-columns: 1fr; }
+  .eg-pert-row, .eg-pert-out { grid-template-columns: 1fr; }
+}

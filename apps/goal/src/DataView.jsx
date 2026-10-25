@@ -26,8 +26,9 @@ export default function DataView() {
     } catch { setMsg(t("data_bad")); }
   };
   return (
-    <section className="panel datav">
-      <h2 className="h2">{t("data_title")}</h2>
+    <section className="page">
+      <header className="phead"><div className="phead-l"><h1 className="ptitle">{t("data_title")}</h1></div></header>
+      <div className="panel datav">
       <p className="muted">{t("data_hint")}</p>
       <div className="btnrow">
         <button className="btn primary" onClick={exportJson}>{t("data_export")}</button>
@@ -36,6 +37,7 @@ export default function DataView() {
         <button className="btn danger" onClick={() => { if (confirm(t("data_resetConfirm"))) { replaceData(seed(lang)); setMsg(""); } }}>{t("data_reset")}</button>
       </div>
       {msg && <p className="msg" role="status">{msg}</p>}
+      </div>
     </section>
   );
 }

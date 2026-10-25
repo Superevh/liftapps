@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore, uid } from '../core/store.jsx'
 import { useLang } from '../core/lang.js'
 import { Icon } from '../core/icons.jsx'
 import { navigate, useClickOutside } from '../core/ui.jsx'
 import { useLiveDoc, createDoc, deleteDoc, newDocId, rememberDoc, rememberedDocs, forgetDoc, backend } from '../core/live.js'
 import { InviteButton, DocStatus, HowTo, fill, ago } from '../core/tools-ui.jsx'
-import { STARTERS, starterBlocks, newAgenda, reduce, totalMinutes, remainingMs, fmtClock, fmtDuration, clockAt, agendaMarkdown, MAX_BLOCKS } from './model.js'
+import { TEMPLATES, CATEGORIES, BLANK, templateById, templateBlocks, searchTemplates, newAgenda, reduce, totalMinutes, remainingMs, fmtClock, fmtDuration, clockAt, agendaMarkdown, MAX_BLOCKS } from './model.js'
 import './agenda.css'
 
 const T = {
   en: {
     eyebrow: 'Workshop agenda', title: 'Plan the time, then keep to it', lead: 'Build your agenda as time-boxed blocks, share a view link with the room, then run it full screen with a countdown, the next block in sight and a gentle chime when time is up.',
-    create: 'New agenda', name: 'Agenda name', namePh: 'e.g. Q3 planning workshop', starter: 'Start from', start: 'Create agenda', yours: 'Your agendas', none: 'Agendas you create or open show up here.', remove: 'Remove', created: 'Created {d}',
+    create: 'New agenda', name: 'Agenda name', namePh: 'e.g. Q3 planning workshop', starter: 'Start from',
+    library: 'Template library', libraryHint: '{n} workshop templates with timings and facilitation tips. Pick one, then adjust the blocks to fit your session.',
+    search: 'Search templates', searchPh: 'Search, e.g. retro, OKR, decision…', all: 'All', noMatch: 'No templates match. Try another word or category.',
+    selected: 'Selected', useThis: 'Create from this template', preview: 'Blocks', blank: 'Blank agenda', blankHint: 'Start from an empty list', start: 'Create agenda', yours: 'Your agendas', none: 'Agendas you create or open show up here.', remove: 'Remove', created: 'Created {d}',
     back: 'All agendas', total: 'Total', blocks: '{n} blocks', block1: '1 block', startAt: 'Starts at', startAtHint: 'Optional: shows clock times', run: 'Run', runFull: 'Run full screen', resume: 'Back to run view',
     addBlock: 'Add block', blockTitle: 'Block title', blockTitlePh: 'e.g. Brainstorm in pairs', minutes: 'min', notes: 'Goal / notes', notesPh: 'What should this block achieve? Instructions, materials…',
     up: 'Move up', down: 'Move down', del: 'Remove block', empty: 'No blocks yet. Add the first one below, or start from a template.', limit: 'This agenda has the maximum number of blocks.',
@@ -29,7 +32,10 @@ const T = {
   },
   zh: {
     eyebrow: '工作坊议程', title: '先规划时间，再守住时间', lead: '把议程拆成限时的议程块，和现场分享查看链接，然后全屏运行：大号倒计时、提示下一项，时间到时有温和的提示音。',
-    create: '新建议程', name: '议程名称', namePh: '例如：第三季度规划工作坊', starter: '从模板开始', start: '创建议程', yours: '我的议程', none: '你创建或打开的议程会显示在这里。', remove: '移除', created: '创建于 {d}',
+    create: '新建议程', name: '议程名称', namePh: '例如：第三季度规划工作坊', starter: '从模板开始',
+    library: '模板库', libraryHint: '{n} 个工作坊模板，含时间安排和引导技巧。选一个，再按你的场次调整议程块。',
+    search: '搜索模板', searchPh: '搜索，例如：复盘、OKR、决策……', all: '全部', noMatch: '没有匹配的模板，换个关键词或类别试试。',
+    selected: '已选', useThis: '用这个模板创建', preview: '议程块', blank: '空白议程', blankHint: '从空列表开始', start: '创建议程', yours: '我的议程', none: '你创建或打开的议程会显示在这里。', remove: '移除', created: '创建于 {d}',
     back: '所有议程', total: '总时长', blocks: '{n} 个议程块', block1: '1 个议程块', startAt: '开始时间', startAtHint: '可选：显示每块的钟点', run: '运行', runFull: '全屏运行', resume: '回到运行视图',
     addBlock: '添加议程块', blockTitle: '议程块标题', blockTitlePh: '例如：两两头脑风暴', minutes: '分钟', notes: '目标 / 备注', notesPh: '这一块要达成什么？说明、材料……',
     up: '上移', down: '下移', del: '删除议程块', empty: '还没有议程块。在下面添加第一个，或者从模板开始。', limit: '议程块数量已达上限。',
@@ -121,14 +127,21 @@ export function AgendaHome() {
   const t = T[lang]
   const [name, setName] = useState('')
   const [starter, setStarter] = useState('retro')
+  const [cat, setCat] = useState(null)
+  const [query, setQuery] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [list, setList] = useState(() => rememberedDocs(KIND))
+  const shown = useMemo(() => searchTemplates(query, cat), [query, cat])
+  const counts = useMemo(() => Object.fromEntries(CATEGORIES.map(c => [c.id, searchTemplates(query, c.id).length])), [query])
+  const tpl = templateById(starter) ?? BLANK
+  const catName = id => CATEGORIES.find(c => c.id === id)?.[lang]
   const create = e => {
-    e.preventDefault()
+    e?.preventDefault()
+    if (busy) return
     const id = newDocId('ag')
     const owner = { id: identity.id }
-    const doc = newAgenda({ id, name: name.trim() || (starter === 'blank' ? t.eyebrow : STARTERS[starter][lang][0].split(' · ')[0]), owner, blocks: starterBlocks(starter, lang), at: Date.now() })
+    const doc = newAgenda({ id, name: name.trim() || (starter === 'blank' ? t.eyebrow : tpl[lang][0]), owner, blocks: templateBlocks(starter, lang), at: Date.now() })
     const done = () => { rememberDoc(KIND, { id, name: doc.name, at: doc.createdAt }); navigate(`/agenda/${id}`) }
     if (!backend) { writeLocal(id, doc); done(); return }
     setBusy(true)
@@ -148,18 +161,27 @@ export function AgendaHome() {
       </section>
       <HowTo tool="agenda" steps={t.steps} tips={t.tips} />
       <div className="ag-home-grid">
-        <form className="tool-card" onSubmit={create}>
+        <form className="tool-card ag-create" onSubmit={create}>
           <h2>{t.create}</h2>
           <label className="field-label" htmlFor="ag-name">{t.name}</label>
-          <input id="ag-name" value={name} onChange={e => setName(e.target.value)} placeholder={t.namePh} maxLength={120} />
+          <input id="ag-name" value={name} onChange={e => setName(e.target.value)} placeholder={starter === 'blank' ? t.namePh : tpl[lang][0]} maxLength={120} />
           <span className="field-label">{t.starter}</span>
-          <div className="ag-starters">
-            {Object.keys(STARTERS).map(k => (
-              <button type="button" key={k} className={`ag-starter ${starter === k ? 'sel' : ''}`} aria-pressed={starter === k} onClick={() => setStarter(k)}>
-                <b>{STARTERS[k][lang][0]}</b><span>{STARTERS[k][lang][1]}</span>
-              </button>
-            ))}
+          <div className="ag-chosen">
+            <button type="button" className={`ag-starter ${starter === 'blank' ? 'sel' : ''}`} aria-pressed={starter === 'blank'} onClick={() => setStarter('blank')}>
+              <b>{t.blank}</b><span>{t.blankHint}</span>
+            </button>
+            {starter !== 'blank' && (
+              <div className="ag-starter sel ag-chosen-tpl" data-testid="ag-chosen">
+                <span className="ag-tpl-meta">{t.selected} · {catName(tpl.cat)} · {fmtDuration(tpl.minutes, lang)}</span>
+                <b>{tpl[lang][0]}</b><span>{tpl[lang][1]}</span>
+              </div>
+            )}
           </div>
+          {starter !== 'blank' && (
+            <ol className="ag-preview" aria-label={t.preview}>
+              {templateBlocks(starter, lang).map((b, i) => <li key={i}><span>{b.title}</span><em>{b.minutes} {t.minutes}</em></li>)}
+            </ol>
+          )}
           {!backend && <p className="muted small">{t.localOnly}</p>}
           {error && <p className="auth-error">{error}</p>}
           <div className="row end"><button className="btn primary" disabled={busy}><Icon name="plus" /> {t.start}</button></div>
@@ -178,6 +200,33 @@ export function AgendaHome() {
           ) : <p className="muted">{t.none}</p>}
         </section>
       </div>
+      <section className="tool-card ag-library" aria-label={t.library}>
+        <div className="tool-card-head">
+          <h2>{t.library}</h2>
+          <input className="ag-search" type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder={t.searchPh} aria-label={t.search} />
+        </div>
+        <p className="muted small">{fill(t.libraryHint, { n: TEMPLATES.length })}</p>
+        <div className="chip-row ag-cats" role="group" aria-label={t.library}>
+          <button type="button" className={`chip-btn ${!cat ? 'sel' : ''}`} aria-pressed={!cat} onClick={() => setCat(null)}>{t.all} <span className="ag-n">{searchTemplates(query, null).length}</span></button>
+          {CATEGORIES.map(c => (
+            <button type="button" key={c.id} data-cat={c.id} className={`chip-btn ${cat === c.id ? 'sel' : ''}`} aria-pressed={cat === c.id} onClick={() => setCat(cat === c.id ? null : c.id)}>{c[lang]} <span className="ag-n">{counts[c.id]}</span></button>
+          ))}
+        </div>
+        {shown.length ? (
+          <div className="ag-tpl-grid">
+            {shown.map(x => (
+              <div key={x.id} className={`ag-tpl ${starter === x.id ? 'sel' : ''}`}>
+                <button type="button" className="ag-tpl-pick" data-tpl={x.id} aria-pressed={starter === x.id} onClick={() => setStarter(x.id)}>
+                  <span className="ag-tpl-meta">{catName(x.cat)} · {fmtDuration(x.minutes, lang)} · {x.blocks.length === 1 ? t.block1 : fill(t.blocks, { n: x.blocks.length })}</span>
+                  <b>{x[lang][0]}</b>
+                  <span>{x[lang][1]}</span>
+                </button>
+                {starter === x.id && <button type="button" className="btn primary sm ag-tpl-use" onClick={() => create()} disabled={busy}><Icon name="plus" size={14} /> {t.useThis}</button>}
+              </div>
+            ))}
+          </div>
+        ) : <p className="muted">{t.noMatch}</p>}
+      </section>
     </main>
   )
 }

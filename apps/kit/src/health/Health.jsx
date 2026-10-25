@@ -82,7 +82,6 @@ export function HealthHome() {
         </div>
         <div className="hero-lights" aria-hidden="true"><i className="hl g" /><i className="hl a" /><i className="hl r" /></div>
       </section>
-      <HowTo tool="health" content={HOWTO.health} />
       <div className="poker-home-grid">
         <form className="tool-card" onSubmit={create}>
           <h2>{t.create}</h2>
@@ -120,6 +119,7 @@ export function HealthHome() {
           ) : <p className="muted">{t.none}</p>}
         </section>
       </div>
+      <HowTo tool="health" content={HOWTO.health} />
       {checks.length > 1 && <TeamTrends checks={checks} t={t} lang={lang} />}
     </main>
   )

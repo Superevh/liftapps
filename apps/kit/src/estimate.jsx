@@ -1,23 +1,26 @@
 import { lazy } from 'react'
 import { boot } from './core/boot.jsx'
 
-// EstimateLift (估算): planning poker, t-shirt sizing and confidence votes. Each tool loads on demand.
+// EstimateLift (估算): planning poker, t-shirt sizing, confidence votes and function points, plus a short
+// guide to estimation methods on the home page. Each tool and the guide load on demand.
 const pick = (load, name) => lazy(() => load().then(m => ({ default: m[name] })))
 const poker = () => import('./poker/Poker.jsx')
 const sizing = () => import('./sizing/Sizing.jsx')
 const confidence = () => import('./confidence/Confidence.jsx')
+const fpa = () => import('./fpa/FunctionPoints.jsx')
 
 boot({
   key: 'estimate',
+  Intro: lazy(() => import('./guide/EstimateGuide.jsx')),
   name: 'EstimateLift',
   en: {
     title: 'Estimate together, calmly',
-    lead: 'Planning poker, t-shirt sizing and confidence votes for agile teams. Everyone joins from a link or QR code, no sign-up.',
+    lead: 'Planning poker, t-shirt sizing, confidence votes and function point counts for agile teams. Everyone joins from a link or QR code, no sign-up.',
     how: 'start a session, share the link, everyone votes in private on their own device, then reveal together and talk about the differences.',
   },
   zh: {
     title: '一起估算，从容不迫',
-    lead: '为敏捷团队准备的计划扑克、T 恤尺码估算和信心投票。点链接或扫码即可加入，无需注册。',
+    lead: '为敏捷团队准备的计划扑克、T 恤尺码估算、信心投票和功能点估算。点链接或扫码即可加入，无需注册。',
     how: '发起一个会话并分享链接，每个人在自己的设备上私下投票，然后一起揭晓，围绕差异展开讨论。',
   },
   tools: [
@@ -30,5 +33,8 @@ boot({
     { view: 'confidence', icon: 'thumb', kind: 'confidence', live: true, Home: pick(confidence, 'ConfidenceHome'), Room: pick(confidence, 'ConfidenceVote'),
       en: ['Confidence vote', 'Fist of five on a plan or a sprint goal: anonymous, instant, with a clear verdict.'],
       zh: ['信心投票', '对计划或迭代目标做举手五指投票：匿名、即时、结论清楚。'] },
+    { view: 'fpa', icon: 'layers', kind: 'fpa-counts', live: true, noName: true, Home: pick(fpa, 'FpaHome'), Room: pick(fpa, 'FpaRoom'),
+      en: ['Function points', 'Count inputs, outputs, inquiries and data files IFPUG-style, with VAF and an effort range.'],
+      zh: ['功能点估算', '按 IFPUG 方法统计输入、输出、查询和数据文件，可加值调整因子并换算工作量。'] },
   ],
 })

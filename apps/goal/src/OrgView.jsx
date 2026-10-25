@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useApp } from "./ctx.js";
 import { uid, makeQuarter, makeYear, tfLabel } from "./logic.js";
-import { LevelBadge } from "./ui.jsx";
 
 export default function OrgView() {
   const { t, lang, data, update, timeframes } = useApp();
@@ -15,9 +14,9 @@ export default function OrgView() {
   const lastY = [...data.timeframes].filter((x) => x.kind === "year").sort((a, b) => b.year - a.year)[0];
 
   return (
-    <section className="org">
-      <div className="panel org-company l-company">
-        <LevelBadge level="company" />
+    <section className="page org">
+      <header className="phead"><div className="phead-l"><h1 className="ptitle">{t("org_title")}</h1><p className="muted small">{t("org_hint")}</p></div></header>
+      <div className="panel org-company">
         <label className="field"><span>{t("org_name")}</span>
           <input value={data.org.name} onChange={(e) => update((d) => { d.org.name = e.target.value; })} data-org-name />
         </label>
@@ -25,7 +24,7 @@ export default function OrgView() {
 
       <div className="org-grid">
         <div className="panel l-department">
-          <div className="sec-h"><h3 className="h3"><LevelBadge level="department" small /> {t("org_depts")}</h3></div>
+          <div className="sec-h"><h3 className="h3">{t("org_depts")}</h3></div>
           <ul className="olist">
             {data.departments.map((d) => (
               <li key={d.id}>
@@ -43,7 +42,7 @@ export default function OrgView() {
         </div>
 
         <div className="panel l-team">
-          <div className="sec-h"><h3 className="h3"><LevelBadge level="team" small /> {t("org_teams")}</h3></div>
+          <div className="sec-h"><h3 className="h3">{t("org_teams")}</h3></div>
           <ul className="olist">
             {data.teams.map((tm) => (
               <li key={tm.id}>
@@ -63,7 +62,7 @@ export default function OrgView() {
         </div>
 
         <div className="panel l-personal">
-          <div className="sec-h"><h3 className="h3"><LevelBadge level="personal" small /> {t("org_people")}</h3></div>
+          <div className="sec-h"><h3 className="h3">{t("org_people")}</h3></div>
           <ul className="olist">
             {data.people.map((p) => (
               <li key={p.id} className="person">

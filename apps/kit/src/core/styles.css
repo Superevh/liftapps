@@ -332,3 +332,7 @@ a { color: var(--brand); text-decoration: none; }
 .modal-x { position: absolute; top: 12px; right: 12px; }
 .btn.light-outline { border: 1px solid var(--line-strong); color: var(--ink); background: var(--panel); }
 .btn.light-outline:hover { background: var(--panel-2); }
+
+/* single-tool apps (PulseLift): the test-mode note sits above the tool lobby */
+.solo-note { width: calc(100% - 40px); max-width: 1140px; margin: 20px auto -6px; display: block; }
+@media (max-width: 640px) { .solo-note { width: calc(100% - 32px); margin-top: 14px; } }

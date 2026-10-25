@@ -57,10 +57,67 @@ GoalLift keeps the same objective / key result / initiative core and alignment-t
 | Personal 个人 | a person | quarter | a team objective or key result (own team listed first) |
 
 Design choices (ours, not the reference's):
-- **Level is a first-class field**, with a fixed colour, badge and indent per level (walnut / bronze / forest / gold) so levels can never blur. The alignment picker only offers parents one level up, in an overlapping timeframe (same quarter, or the annual timeframe containing it).
+- **Level is a first-class field.** Since the v2 redesign the level is conveyed by *where you are* (sidebar unit, breadcrumb) plus a small text label and one accent colour per level (walnut / bronze / sage-forest / gold); see "Mooncamp UX" below. The alignment picker only offers parents one level up, in an overlapping timeframe (same quarter, or the annual timeframe containing it).
 - Strategic pillars and KPIs are out of scope for v1; annual company objectives play the "strategy" role and departments cascade from them.
 - Progress driver per objective: key results (default), aligned objectives, or both, equal weight by default with optional per-KR weight; initiatives never count (kept as the "what we'll do" list).
 - Confidence on check-in: on track / at risk / off track; objective status = weakest KR. "Needs check-in" after 7 days without one.
 - Quarter close: an objective can be closed with a 0–1.0 score and a short reflection.
 - A rule-based **KR quality helper** (no API) nudges outcome-style key results: flags missing numbers/targets, activity verbs (launch, build, do…), vague verbs without a number, and start = target.
-- One local workspace in localStorage with JSON export / import; seeded with a fictional "Example Co".
+- One local workspace in localStorage with JSON export / import; seeded with a fictional coffee roaster, "Juniper Roasters" (2 departments, 4 teams, 9 people, 13 objectives). Storage key is `goallift-workspace-v2`, so v1 test data is not carried over.
+
+## Mooncamp UX (second reference, for the v2 information architecture)
+
+Why: users found v1 "very messy" (every level's cards on one long filtered page). Mooncamp is one of the best-rated OKR tools for clarity (G2 ~4.8) and has an explicit company → team → individual hierarchy, so v2 follows its *navigation and layout patterns*. Studied from public pages only: marketing pages and the public help centre (served as Markdown via its docs index). No account, no sign-in, no trial. Nothing was copied: GoalLift uses its own labels, copy, icons and visuals and never names the reference in the UI.
+
+Captured 26 Oct 2026 with REA `capture_browser_scenario` (headless Chrome, accessibility snapshots): evidence `ev_c83f574a…` (home page: product tabs "Goals & OKRs / Dashboards / Check-ins / Strategy Maps"), `ev_43c78e84…` (check-ins and dashboards product pages). Help-centre articles were read from the public docs index.
+
+| Topic | URL |
+|---|---|
+| Home / product tour tabs | https://mooncamp.com/ |
+| Goals & OKRs product page (views: table, list, network, tree) | https://mooncamp.com/goals-and-okrs |
+| Check-ins product page | https://mooncamp.com/check-ins |
+| Dashboards product page | https://mooncamp.com/dashboards |
+| Docs index | https://mooncamp.com/docs/llms.txt |
+| Sidebar | https://mooncamp.com/docs/sidebar |
+| Goals overview (company / team / individual) | https://mooncamp.com/docs/goals-overview |
+| Teamspaces (nested teams) | https://mooncamp.com/docs/teamspaces |
+| Views (cascade, list, tree, network) | https://mooncamp.com/docs/views |
+| Goal tree | https://mooncamp.com/docs/goal-tree |
+| Cycles and the cycle picker | https://mooncamp.com/docs/cycles |
+| Progress measurement (aggregation) | https://mooncamp.com/docs/progress-measurement |
+| Updating goals | https://mooncamp.com/docs/updating-goals |
+| Goal statuses | https://mooncamp.com/docs/goal-statuses |
+| Progress dashboard | https://mooncamp.com/docs/progress-dashboard |
+| Check-ins | https://mooncamp.com/docs/check-ins |
+| Adding key results / sub-goals | https://mooncamp.com/docs/adding-subgoals |
+
+**Navigation model.** A persistent left sidebar: search / home / inbox / settings at the top; then *spaces*: the company space plus the teamspaces you belong to (teams nest via parent teams, so the org chart is the navigation); then tools (goals, check-ins, dashboards); trash and help at the bottom. Picking a space shows that unit's goals only ("on a teamspace, goals are pre-filtered to show the respective team's goals"). The personal home page shows the goals you own.
+
+**OKR list layout.** The default goal view is a *cascade*: a nested table where an objective row expands to its key results and to aligned sub-goals, with inline progress, owner and status. Alternatives are a flat list, a tree and a network view; views can be filtered and saved, but the unit page itself is already scoped, so filters are secondary.
+
+**Levels / teams.** Level is implicit in the space you are in (company space vs a teamspace vs your home), not a badge on every row. Team owners, colours and icons are set once in team settings.
+
+**Tree / map view.** A top-down tree of goal cards connected by branches; each card shows the essentials; per-card expand / collapse (a counter of hidden children), "expand next level" and expand / collapse all; zoom and pan; isolated (unaligned) goals are easy to spot; card size adjustable.
+
+**Check-in flow.** Progress is updated in three places: inline from the cascade row, from the progress bar on the goal detail, or in a (weekly) check-in. An update records the new value and a status; the system suggests a status from progress versus time elapsed. Check-ins add comments and form a feed / history per goal.
+
+**Progress display.** Progress bar + percentage on every row; objectives aggregate the average of their sub-items by default (key results converted to 0–100%), optionally weighted; statuses are colour-coded (on track / progressing / off track, plus closed statuses).
+
+**Cycle switcher.** A cycle picker in the top-right of every view; the choice applies app-wide (lists and dashboards). Goals belong to a cycle.
+
+**Dashboard.** A progress dashboard: overall progress versus expected, goals at risk, counts by type, and progress grouped by team or member, all scoped by the cycle filter.
+
+### What GoalLift v2 adopts (own UI, own words)
+
+| Pattern | GoalLift v2 |
+|---|---|
+| Org-shaped sidebar | Sidebar: Overview, My OKRs, OKR tree; then the organisation: Company → each Department → its Teams (with a quiet % per unit); settings and data at the bottom. Becomes a drawer below 900px. |
+| Unit page shows only its goals | Company / department / team / person pages list only objectives owned by that unit, with a breadcrumb, one level label, unit progress, and links to the units one level down (departments, teams or people). |
+| Cascade rows | Objective rows (status dot, title, lead avatar, progress bar + %). A caret expands KR rows (title, current / target, progress, last check-in, Check in) and a collapsible **Contributing OKRs** group with the aligned objectives from the level below, which expand the same way: company → department → team → person drill-down in place. |
+| Tree | OKR tree: top-down cards with level shown as a thin accent line and a small label, per-branch fold with hidden-count, expand / collapse all, zoom (auto-fits on open); unaligned objectives listed separately. |
+| Check-in | Side panel per KR: new value (with live progress preview), confidence, comment; history below. |
+| Aggregation | New default progress driver "key results and contributing objectives", so a personal check-in visibly rolls up to the team, department and company objective. |
+| Cycle picker | Cycle switcher in the header, applied to every page and the overview. |
+| Progress dashboard | Compact Overview: overall %, progress by level and by department, at-risk key results, check-ins due. |
+
+Not adopted: saved views, custom statuses, plans / drafts, integrations, inline editing of values in the row (GoalLift keeps one explicit check-in path so history stays complete).

@@ -121,6 +121,7 @@ function AppHome({ app, lang }) {
         {backend?.kind === 'mock' && <p className="tool-note small">{t.mock}</p>}
         {!backend && <p className="tool-note small">{t.noBackend}</p>}
       </section>
+      {app.Intro && <Suspense fallback={null}><app.Intro /></Suspense>}
       <section className="tool-grid" aria-label={t.tools}>
         {app.tools.map(tool => {
           const [name, line] = tool[lang]
@@ -163,11 +164,13 @@ export function AppShell({ app }) {
   const t = T[lang]
   const { identity } = useStore()
   const route = useRoute()
-  const tool = app.tools.find(x => x.view === route.view)
+  // An app with a single tool has no home of its own: the tool's lobby is the front page.
+  const solo = app.tools.length === 1
+  const tool = app.tools.find(x => x.view === route.view) ?? (solo ? app.tools[0] : undefined)
   useEffect(() => {
     const name = app.name
-    document.title = tool ? `${tool[lang][0]} · ${name} · Lift Apps` : `${name} · Lift Apps`
-  }, [tool, lang, app.name])
+    document.title = tool && !solo ? `${tool[lang][0]} · ${name} · Lift Apps` : `${name} · Lift Apps`
+  }, [tool, lang, app.name, solo])
   let page
   if (!tool) page = <AppHome app={app} lang={lang} />
   else if (route.id && tool.Room) page = <tool.Room key={route.id} id={route.id} sub={route.sub} />
@@ -177,7 +180,7 @@ export function AppShell({ app }) {
     <div className="app">
       <nav className="subnav no-print" aria-label={t.tools}>
         <div className="subnav-tabs">
-          <a className={`top-link ${!tool ? 'on' : ''}`} href="#/"><Icon name="home" size={16} /><span className="lbl">{t.home}</span></a>
+          {!solo && <a className={`top-link ${!tool ? 'on' : ''}`} href="#/"><Icon name="home" size={16} /><span className="lbl">{t.home}</span></a>}
           {app.tools.map(x => (
             <a key={x.view} className={`top-link ${tool === x ? 'on' : ''}`} href={`#/${x.view}`} aria-current={tool === x ? 'page' : undefined}>
               <Icon name={x.icon} size={16} /><span className="lbl">{x[lang][0]}</span>
@@ -186,6 +189,7 @@ export function AppShell({ app }) {
         </div>
         <Identity />
       </nav>
+      {solo && !route.id && (backend?.kind === 'mock' || !backend) && <p className="tool-note small solo-note">{backend ? t.mock : t.noBackend}</p>}
       <Suspense fallback={<Loading />}>{page}</Suspense>
       <footer className="site-foot no-print"><a href="https://liftapps.com.au">{t.foot}</a></footer>
       {needsName && <NamePrompt />}

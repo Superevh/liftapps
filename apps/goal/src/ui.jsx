@@ -1,33 +1,62 @@
+import { useEffect, useRef } from "react";
 import { useApp } from "./ctx.js";
-import {
-  LEVELS, pct, objectiveProgress, objectiveStatus, objectiveNeedsCheckin, krQuality, krQualityFlag, ownerName, personName,
-  inTimeframe, tfLabel, findParent, daysAgo, krProgress,
-} from "./logic.js";
+import { pct, krQuality, daysAgo, initials, personName } from "./logic.js";
 
-export function LevelBadge({ level, small }) {
-  const { t } = useApp();
-  return <span className={`lvl lvl-${level}${small ? " sm" : ""}`}><i aria-hidden="true">{LEVELS.indexOf(level) + 1}</i>{t(`level_${level}`)}</span>;
-}
-
-export function StatusPill({ status, needs }) {
-  const { t } = useApp();
+// Small inline icons (own drawings, 16px grid, stroke = currentColor).
+const P = {
+  overview: "M2.5 13.5h11M4 11V7m4 4V4m4 7V8.5",
+  me: "M8 8a2.6 2.6 0 1 0 0-5.2A2.6 2.6 0 0 0 8 8Zm-4.8 5.5c.6-2.3 2.5-3.6 4.8-3.6s4.2 1.3 4.8 3.6",
+  tree: "M8 2.5v3M4 9V7.5h8V9M8 5.5v2M2.5 9h3v3.5h-3zM10.5 9h3v3.5h-3zM6.5 2h3v3h-3z",
+  company: "M3 13.5V4l5-1.8L13 4v9.5M2 13.5h12M6 6.5h1M9 6.5h1M6 9h1M9 9h1",
+  settings: "M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm5-2c0-.4 0-.8-.1-1.1l1.3-1-1.2-2-1.5.5a5 5 0 0 0-1.9-1.1L9.3 1.8H6.7L6.4 3.3a5 5 0 0 0-1.9 1.1L3 3.9l-1.2 2 1.3 1A5 5 0 0 0 3 8c0 .4 0 .8.1 1.1l-1.3 1 1.2 2 1.5-.5c.5.5 1.2.9 1.9 1.1l.3 1.5h2.6l.3-1.5c.7-.2 1.4-.6 1.9-1.1l1.5.5 1.2-2-1.3-1c.1-.3.1-.7.1-1.1Z",
+  data: "M3 4c0-1 2.2-1.7 5-1.7S13 3 13 4s-2.2 1.7-5 1.7S3 5 3 4Zm0 0v8c0 1 2.2 1.7 5 1.7s5-.7 5-1.7V4M3 8c0 1 2.2 1.7 5 1.7S13 9 13 8",
+  caret: "M6 4l4 4-4 4",
+  plus: "M8 3.5v9M3.5 8h9",
+  close: "M4 4l8 8M12 4l-8 8",
+  menu: "M2.5 4.5h11M2.5 8h11M2.5 11.5h11",
+  pen: "M10.5 3l2.5 2.5L6 12.5H3.5V10L10.5 3Z",
+  trash: "M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5",
+  hint: "M8 1.8a4.2 4.2 0 0 0-2.4 7.7V11h4.8V9.5A4.2 4.2 0 0 0 8 1.8ZM6 13.3h4",
+  minus: "M3.5 8h9",
+  fit: "M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10",
+  check: "M3 8.5l3 3 7-7",
+  link: "M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1A2.5 2.5 0 0 1 4.5 9l1-1",
+};
+export function Icon({ name, size = 16, className = "" }) {
   return (
-    <span className="pills">
-      <span className={`st st-${status}`}><b aria-hidden="true" />{t(`status_${status}`)}</span>
-      {needs && <span className="st st-needs" title={t("status_needs")}><b aria-hidden="true" />{t("needsBadge")}</span>}
-    </span>
+    <svg className={`ic ${className}`} width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={P[name]} />
+    </svg>
   );
 }
 
-export function Bar({ value, level, status }) {
+// Level: a quiet text label with one accent dot.
+export function LevelTag({ level }) {
+  const { t } = useApp();
+  return <span className={`ltag l-${level}`}><i aria-hidden="true" />{t(`level_${level}`)}</span>;
+}
+
+export function StatusDot({ status }) {
+  const { t } = useApp();
+  return <span className={`sdot s-${status}`} title={t(`status_${status}`)} role="img" aria-label={t(`status_${status}`)} />;
+}
+
+export function Bar({ value, level }) {
   return (
-    <span className={`bar bar-${level || "x"} ${status ? `bs-${status}` : ""}`} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct(value)}>
+    <span className={`bar l-${level || "x"}`} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct(value)}>
       <span style={{ width: `${pct(value)}%` }} />
     </span>
   );
 }
 
-export function Pct({ value }) { return <span className="pct">{pct(value)}%</span>; }
+const TONES = ["#E9D6B8", "#D9E4D6", "#F0D3C1", "#E6DCCB", "#DCD3C6"];
+export function Avatar({ id, size = 26 }) {
+  const { data } = useApp();
+  const name = personName(data, id);
+  if (!name) return null;
+  const tone = TONES[[...id].reduce((s, c) => s + c.charCodeAt(0), 0) % TONES.length];
+  return <span className="avatar" title={name} style={{ width: size, height: size, background: tone, fontSize: size * 0.4 }} aria-label={name} role="img">{initials(name)}</span>;
+}
 
 export function ago(t, isoStr) {
   if (!isoStr) return t("never");
@@ -35,110 +64,7 @@ export function ago(t, isoStr) {
   return n <= 0 ? t("today") : n === 1 ? t("dayAgo1") : t("daysAgoN", { n });
 }
 
-// Apply the shared filter bar to objectives.
-export function useFiltered() {
-  const { data, filters } = useApp();
-  return filterObjectives(data, filters);
-}
-export function filterObjectives(data, filters) {
-  const tfById = Object.fromEntries(data.timeframes.map((x) => [x.id, x]));
-  const q = filters.q.trim().toLowerCase();
-  return data.objectives.filter((o) => {
-    if (!inTimeframe(o, filters.tf, tfById)) return false;
-    if (filters.level !== "all" && o.level !== filters.level) return false;
-    if (filters.owner !== "all") {
-      const [kind, id] = filters.owner.split(":");
-      if (kind === "unit" && o.ownerId !== id && !(id === "company" && o.level === "company")) return false;
-      if (kind === "lead" && o.leadId !== id && !o.krs.some((k) => k.leadId === id)) return false;
-    }
-    if (filters.status !== "all") {
-      if (filters.status === "needs") { if (!objectiveNeedsCheckin(o)) return false; }
-      else if (filters.status === "closed") { if (!o.closed) return false; }
-      else if (o.closed || objectiveStatus(o, data.objectives) !== filters.status) return false;
-    }
-    if (q && !(o.title.toLowerCase().includes(q) || o.krs.some((k) => k.title.toLowerCase().includes(q)))) return false;
-    return true;
-  });
-}
-
-export function FilterBar({ hideLevel }) {
-  const { t, lang, data, filters, setFilters, timeframes } = useApp();
-  const set = (k) => (e) => setFilters((f) => ({ ...f, [k]: e.target.value }));
-  const dirty = filters.level !== "all" || filters.owner !== "all" || filters.status !== "all" || filters.q;
-  return (
-    <div className="filters" role="search">
-      <label><span>{t("timeframe")}</span>
-        <select value={filters.tf} onChange={set("tf")} aria-label={t("timeframe")} data-filter="tf">
-          <option value="all">{t("allTimeframes")}</option>
-          {timeframes.map((x) => <option key={x.id} value={x.id}>{tfLabel(x, lang)}</option>)}
-        </select>
-      </label>
-      {!hideLevel && (
-        <label><span>{t("level")}</span>
-          <select value={filters.level} onChange={set("level")} aria-label={t("level")} data-filter="level">
-            <option value="all">{t("allLevels")}</option>
-            {LEVELS.map((l) => <option key={l} value={l}>{t(`level_${l}`)}</option>)}
-          </select>
-        </label>
-      )}
-      <label><span>{t("owner")}</span>
-        <select value={filters.owner} onChange={set("owner")} aria-label={t("owner")} data-filter="owner">
-          <option value="all">{t("allOwners")}</option>
-          <optgroup label={t("level_company")}><option value="unit:company">{data.org.name}</option></optgroup>
-          <optgroup label={t("level_department")}>{data.departments.map((d) => <option key={d.id} value={`unit:${d.id}`}>{d.name}</option>)}</optgroup>
-          <optgroup label={t("level_team")}>{data.teams.map((d) => <option key={d.id} value={`unit:${d.id}`}>{d.name}</option>)}</optgroup>
-          <optgroup label={t("lead")}>{data.people.map((d) => <option key={d.id} value={`lead:${d.id}`}>{d.name}</option>)}</optgroup>
-        </select>
-      </label>
-      <label><span>{t("status")}</span>
-        <select value={filters.status} onChange={set("status")} aria-label={t("status")} data-filter="status">
-          <option value="all">{t("allStatuses")}</option>
-          {["on_track", "at_risk", "off_track", "none", "needs", "closed"].map((s) => <option key={s} value={s}>{t(`status_${s}`)}</option>)}
-        </select>
-      </label>
-      <label className="grow"><span>{t("search")}</span>
-        <input type="search" value={filters.q} onChange={set("q")} placeholder={t("search")} aria-label={t("search")} />
-      </label>
-      {dirty && <button className="btn ghost sm" onClick={() => setFilters((f) => ({ ...f, level: "all", owner: "all", status: "all", q: "" }))}>{t("clearFilters")}</button>}
-    </div>
-  );
-}
-
-export function ObjectiveCard({ obj, compact }) {
-  const { data, t, lang, openObjective } = useApp();
-  const prog = objectiveProgress(obj, data.objectives);
-  const status = obj.closed ? "closed" : objectiveStatus(obj, data.objectives);
-  const needs = objectiveNeedsCheckin(obj);
-  const parent = findParent(obj, data.objectives);
-  const tf = data.timeframes.find((x) => x.id === obj.timeframeId);
-  const flagged = obj.krs.filter(krQualityFlag).length;
-  return (
-    <article className={`ocard l-${obj.level}${obj.closed ? " closed" : ""}`} data-obj={obj.id}>
-      <button className="ocard-hit" onClick={() => openObjective(obj.id)} aria-label={`${t("open")}: ${obj.title}`} />
-      <div className="ocard-top">
-        <LevelBadge level={obj.level} small />
-        <span className="owner">{ownerName(data, obj.level, obj.ownerId, t)}</span>
-        {tf && <span className={`tf${tf.kind === "year" ? " year" : ""}`}>{tfLabel(tf, lang)}</span>}
-      </div>
-      <h3>{obj.title}</h3>
-      <div className="ocard-prog"><Bar value={prog} level={obj.level} /><Pct value={prog} /></div>
-      <div className="ocard-meta">
-        <StatusPill status={status} needs={needs} />
-        <span className="muted">{t("krCount", { done: obj.krs.filter((k) => krProgress(k) >= 1).length, n: obj.krs.length })}</span>
-        {flagged > 0 && <span className="qflag" title={t("q_title")}>✎ {t("flagVague")}</span>}
-      </div>
-      {!compact && (
-        <div className="ocard-align">
-          {parent?.objective ? (
-            <span><span className="muted">{t("alignedTo")}</span> <span className={`dot d-${parent.objective.level}`} aria-hidden="true" />{parent.kr ? parent.kr.title : parent.objective.title}</span>
-          ) : obj.level !== "company" ? <span className="warn-text">{t("alignNoneLower")}</span> : null}
-          <span className="muted lead">{personName(data, obj.leadId)}</span>
-        </div>
-      )}
-    </article>
-  );
-}
-
+// Full rule-based hint, shown only inside the key result form.
 export function QualityHint({ kr, endLabel }) {
   const { t } = useApp();
   const issues = krQuality(kr);
@@ -160,13 +86,51 @@ export function QualityHint({ kr, endLabel }) {
   );
 }
 
+// Subtle marker on a KR row when the wording could be sharper.
+export function QualityMark({ kr }) {
+  const { t } = useApp();
+  const warn = krQuality(kr).find((i) => i.severity === "warn");
+  if (!warn) return null;
+  return <span className="qmark" title={`${t("q_title")}: ${t(`q_${warn.code}`)}`} aria-label={t("flagVague")} data-quality="warn"><Icon name="hint" size={13} /></span>;
+}
+
+// Escape closes only the top-most layer.
+const layers = [];
+function useEscape(onClose) {
+  const ref = useRef(onClose);
+  ref.current = onClose;
+  useEffect(() => {
+    const me = {};
+    layers.push(me);
+    const h = (e) => { if (e.key === "Escape" && layers[layers.length - 1] === me) { e.stopPropagation(); ref.current(); } };
+    window.addEventListener("keydown", h);
+    return () => { window.removeEventListener("keydown", h); layers.splice(layers.indexOf(me), 1); };
+  }, []);
+}
+
 export function Modal({ title, onClose, children, wide }) {
+  const { t } = useApp();
+  useEscape(onClose);
   return (
     <div className="scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className={`modal${wide ? " wide" : ""}`} role="dialog" aria-modal="true" aria-label={title}>
-        <div className="modal-head"><h2>{title}</h2><button className="x" onClick={onClose} aria-label="Close">×</button></div>
+        <div className="modal-head"><h2>{title}</h2><button className="iconbtn" onClick={onClose} aria-label={t("close")}><Icon name="close" /></button></div>
         <div className="modal-body">{children}</div>
       </div>
+    </div>
+  );
+}
+
+// Right-hand side panel for objective details and check-ins.
+export function Sheet({ label, onClose, children, head, attrs = {} }) {
+  const { t } = useApp();
+  useEscape(onClose);
+  return (
+    <div className="scrim sheet-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <aside className="sheet" role="dialog" aria-modal="true" aria-label={label} {...attrs}>
+        <div className="sheet-head">{head}<span className="grow" /><button className="iconbtn" onClick={onClose} aria-label={t("close")}><Icon name="close" /></button></div>
+        <div className="sheet-body">{children}</div>
+      </aside>
     </div>
   );
 }

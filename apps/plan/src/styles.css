@@ -132,8 +132,23 @@ input.lane-name:focus { outline: none; border-color: var(--lift-line-2); backgro
 .col header p { flex-basis: 100%; margin: 0; font-size: 12.5px; color: var(--lift-ink-3); }
 .cards { display: flex; flex-direction: column; gap: 8px; }
 .empty { margin: 4px 0; font-size: 13px; color: var(--lift-ink-3); }
-.card { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; text-align: left; background: var(--lift-card); border: 1px solid var(--lift-line); border-left: 4px solid var(--c); border-radius: 12px; }
+.card { position: relative; background: var(--lift-card); border: 1px solid var(--lift-line); border-left: 4px solid var(--c); border-radius: 12px; }
 .card:hover { box-shadow: 0 10px 26px -18px rgba(74, 52, 35, .55); }
+.card-open { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 12px 14px; text-align: left; border-radius: 10px; }
+.can-drag .card-open { padding-right: 62px; cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.card-tools { position: absolute; top: 6px; right: 6px; display: flex; align-items: center; gap: 2px; }
+.card-grip { display: grid; place-items: center; width: 26px; height: 32px; border-radius: 8px; color: var(--lift-ink-3); cursor: grab; touch-action: none; opacity: .55; }
+.card-move { display: grid; place-items: center; width: 30px; height: 32px; border-radius: 8px; color: var(--lift-ink-3); opacity: .55; }
+.card:hover .card-grip, .card:hover .card-move, .card-move:focus-visible, .card-move[aria-expanded="true"] { opacity: 1; }
+.card-grip:hover, .card-move:hover, .card-move[aria-expanded="true"] { background: var(--lift-gold-soft); color: var(--lift-ink); }
+.card-menu { top: calc(100% + 2px); min-width: 200px; }
+.card-menu .menu-item:disabled { opacity: .35; }
+.card.ghosted { opacity: .35; }
+.board.is-dragging, .board.is-dragging * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
+.board.is-dragging .card:hover { box-shadow: none; }
+.col.drop-target { border-color: var(--lift-gold-ink); background: color-mix(in srgb, var(--lift-gold) 10%, var(--lift-paper-2)); }
+.drop-line { height: 3px; margin: -2px 2px; border-radius: 3px; background: var(--lift-gold-ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--lift-gold) 25%, transparent); }
+.drag-ghost { position: fixed; left: 0; top: 0; z-index: 1500; pointer-events: none; box-shadow: 0 22px 48px -18px rgba(74, 52, 35, .6); opacity: .96; }
 .card.sel { outline: 2px solid var(--lift-ink); outline-offset: 1px; }
 .card b { font-weight: 600; font-size: 14.5px; line-height: 1.35; }
 .card.st-done b { color: var(--lift-ink-2); }
@@ -189,6 +204,7 @@ input.lane-name:focus { outline: none; border-color: var(--lift-line-2); backgro
   .views button { padding: 0 10px; }
 }
 @media (max-width: 640px) {
+  .card-grip, .card-move { opacity: 1; }
   .toolbar { flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
   .tb-left { flex-basis: 100%; }
   .tb-right { flex: 1; }
@@ -211,7 +227,8 @@ input.lane-name:focus { outline: none; border-color: var(--lift-line-2); backgro
 @media print {
   @page { size: landscape; margin: 10mm; }
   html, body { height: auto; overflow: visible; background: #fff; }
-  lift-bar, .tb-right, .tl-foot, .ro-banner, .panel, .rm-btn, .views, .toast { display: none !important; }
+  lift-bar, .tb-right, .tl-foot, .ro-banner, .panel, .rm-btn, .views, .toast, .card-tools { display: none !important; }
+  .can-drag .card-open { padding-right: 14px; }
   .toolbar { border: 0; padding: 0 0 8px; }
   #root, .app, .main, .tl, .board { display: block; overflow: visible; height: auto; }
   .board { display: grid; }

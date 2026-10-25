@@ -9,7 +9,8 @@ import { createClient } from '@supabase/supabase-js'
 // Audience (anonymous):   join, poll, respond, ask, upvote, questions, audienceResults, myQuiz, react
 // Realtime:               channel(id) -> { on(event, fn), send(event, payload), close() }
 // Auth:                   auth.onChange(fn(user|null)), signIn(provider), sendLink, signInPassword, signUp,
-//                         resetPassword, updatePassword, signOut, providers
+//                         resetPassword, updatePassword, signOut, providers; Supabase also: settings(),
+//                         redirectResult(), redirectUrl(), resendConfirmation(email)
 export async function createBackend() {
   const env = import.meta.env
   if (env.VITE_BACKEND === 'local') {
@@ -60,27 +61,65 @@ function supabaseBackend(url, key) {
     if (error) throw new Error(error.message)
     return data
   }
-  const returnUrl = () => {
-    try { localStorage.setItem(RETURN_KEY, window.location.hash) } catch { /* ignore */ }
-    return window.location.origin + import.meta.env.BASE_URL
+  // Every redirect (OAuth, email link, confirmation, password reset) comes back to exactly this page:
+  // the current origin + the app base, never a hash route or query (https://liftapps.com.au/vote/app/).
+  // Supabase only honours it when it is listed under Authentication → URL Configuration → Redirect URLs;
+  // otherwise it silently sends people to the project's Site URL instead.
+  const appRoot = () => new URL(import.meta.env.BASE_URL, window.location.origin).href
+  const returnUrl = method => {
+    try { localStorage.setItem(RETURN_KEY, JSON.stringify({ hash: window.location.hash, method, at: Date.now() })) } catch { /* ignore */ }
+    return appRoot()
   }
-  const ok = ({ error }) => { if (error) throw new Error(error.message) }
+  // Keep Supabase's machine-readable code and status so the UI can explain the problem.
+  const fail = error => { const e = new Error(error.message || String(error)); e.code = error.code || ''; e.status = error.status || 0; throw e }
+  const ok = ({ error }) => { if (error) fail(error) }
+  const envProviders = (import.meta.env.VITE_AUTH_PROVIDERS ?? '').split(',').map(x => x.trim()).filter(Boolean)
+  // Public, read-only auth settings: which providers are switched on, whether sign-up is open, etc.
+  let settingsP = null
+  const settings = () => (settingsP ??= fetch(`${url}/auth/v1/settings`, { headers: { apikey: key } })
+    .then(r => (r.ok ? r.json() : null))
+    .then(s => s && {
+      providers: Object.fromEntries(['google', 'github', 'email', 'anonymous_users'].map(k => [k, !!s.external?.[k]])),
+      signupDisabled: !!s.disable_signup,
+      autoconfirm: !!s.mailer_autoconfirm,
+    })
+    .catch(() => null))
+  // If the page came back with ?code=… but no session could be made from it (link opened in another browser,
+  // expired or reused), say why instead of failing silently.
+  const redirectResult = async () => {
+    if (!new URLSearchParams(LANDING.search).has('code')) return null
+    const init = await sb.auth.initialize()
+    const { data } = await sb.auth.getSession()
+    if (data?.session) return null
+    return { message: init?.error?.message || '', code: init?.error?.code || 'flow_state_not_found' }
+  }
   return {
     kind: 'supabase',
     ...rpcApi(call),
     auth: {
-      providers: (import.meta.env.VITE_AUTH_PROVIDERS ?? '').split(',').map(x => x.trim()).filter(Boolean),
+      providers: envProviders,
+      settings,
+      redirectResult,
+      redirectUrl: appRoot,
       onChange(fn) {
         const { data } = sb.auth.onAuthStateChange((event, session) => fn(session?.user ?? null, event))
         return () => data.subscription.unsubscribe()
       },
-      signIn: provider => sb.auth.signInWithOAuth({ provider, options: { redirectTo: returnUrl() } }).then(ok),
-      sendLink: email => sb.auth.signInWithOtp({ email, options: { emailRedirectTo: returnUrl() } }).then(ok),
+      signIn: provider => sb.auth.signInWithOAuth({ provider, options: { redirectTo: returnUrl(provider) } }).then(ok),
+      sendLink: email => sb.auth.signInWithOtp({ email, options: { emailRedirectTo: returnUrl('link') } }).then(ok),
       signInPassword: (email, password) => sb.auth.signInWithPassword({ email, password }).then(ok),
-      // Resolves to true when the address still has to be confirmed from the email Supabase sends.
-      signUp: (email, password) => sb.auth.signUp({ email, password, options: { emailRedirectTo: returnUrl() } })
-        .then(({ data, error }) => { if (error) throw new Error(error.message); return !data.session }),
-      resetPassword: email => sb.auth.resetPasswordForEmail(email, { redirectTo: returnUrl() }).then(ok),
+      // Resolves to 'confirm' when the address still has to be confirmed from the email Supabase sends,
+      // 'exists' when the email already has an account (Supabase then sends nothing and returns a user with no identities),
+      // or 'signed-in'.
+      signUp: (email, password) => sb.auth.signUp({ email, password, options: { emailRedirectTo: returnUrl('signup') } })
+        .then(({ data, error }) => {
+          if (error) fail(error)
+          if (data.session) return 'signed-in'
+          if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) return 'exists'
+          return 'confirm'
+        }),
+      resendConfirmation: email => sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: returnUrl('signup') } }).then(ok),
+      resetPassword: email => sb.auth.resetPasswordForEmail(email, { redirectTo: returnUrl('reset') }).then(ok),
       updatePassword: password => sb.auth.updateUser({ password }).then(ok),
       signOut: () => sb.auth.signOut({ scope: 'local' }).then(ok),
     },
@@ -106,19 +145,41 @@ function supabaseBackend(url, key) {
   }
 }
 
-// Sign-in providers send people back to the site root; the page they were on is restored afterwards.
+// Sign-in providers send people back to the app root; the page they were on is restored afterwards.
+// Returns { error, code } when the URL carries an error from Supabase (e.g. an expired email link), else null.
 const RETURN_KEY = 'livepolls-return'
+// The URL as the page was opened, before Supabase strips ?code= from it.
+const LANDING = { search: window.location.search, hash: window.location.hash }
+let finished = false
+const readReturn = () => {
+  try {
+    const raw = localStorage.getItem(RETURN_KEY) || ''
+    if (raw.startsWith('{')) return JSON.parse(raw)
+    return raw ? { hash: raw, at: 0 } : null
+  } catch { return null }
+}
 export function finishSignInRedirect() {
-  const q = new URLSearchParams(window.location.search)
-  const hashQ = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  if (finished) return null
+  finished = true
+  const q = new URLSearchParams(LANDING.search)
+  const hashQ = new URLSearchParams(LANDING.hash.replace(/^#/, ''))
   const error = q.get('error_description') || hashQ.get('error_description')
+  const code = q.get('error_code') || hashQ.get('error_code') || q.get('error') || hashQ.get('error') || ''
   if (!q.has('code') && !error) return null
-  let back = ''
-  try { back = localStorage.getItem(RETURN_KEY) || ''; localStorage.removeItem(RETURN_KEY) } catch { /* ignore */ }
+  const back = readReturn()?.hash || ''
+  try { localStorage.removeItem(RETURN_KEY) } catch { /* ignore */ }
   window.history.replaceState(null, '', window.location.pathname + (back.startsWith('#/') ? back : '#/'))
   window.dispatchEvent(new HashChangeEvent('hashchange'))
-  return error
+  return error ? { error, code } : null
 }
+// A sign-in that left for Google / GitHub / an email link within the last hour but never came back here
+// (Supabase sent the person to its Site URL instead, usually because this page isn't an allowed redirect URL).
+export function strandedSignIn() {
+  const r = readReturn()
+  if (!r || !r.at || Date.now() - r.at > 3600e3 || r.method === 'reset' || r.method === 'signup' || r.method === 'link') return null
+  return r.method
+}
+export function clearStrandedSignIn() { try { localStorage.removeItem(RETURN_KEY) } catch { /* ignore */ } }
 
 // The audience's anonymous id: random, kept in this browser so a refresh keeps your votes.
 export function voterId() {

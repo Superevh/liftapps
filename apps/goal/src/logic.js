@@ -42,6 +42,13 @@ export function inTimeframe(obj, selId, tfById) {
   return sel?.kind === "quarter" && own?.kind === "year" && tfContains(own, sel);
 }
 
+// Cycle view: an objective is visible when its timeframe overlaps the selected cycle
+// (a quarter shows its own goals plus the annual goals spanning it; a year shows everything inside it).
+export function inCycle(obj, selId, tfById) {
+  if (!selId || selId === "all") return true;
+  return !!tfOverlaps(tfById[obj.timeframeId], tfById[selId]);
+}
+
 // ---------- Key results ----------
 export function krProgress(kr) {
   if (kr.type === "milestone") return kr.done ? 1 : 0;
@@ -131,6 +138,25 @@ export function parentUnitOf(data, level, ownerId) {
   if (level === "team") return data.teams.find((x) => x.id === ownerId)?.deptId;
   if (level === "personal") return data.people.find((x) => x.id === ownerId)?.teamId;
   return null;
+}
+
+// Objectives owned by one unit (level + owner) that are visible in the cycle. Open first, closed last.
+export function unitObjectives(data, level, ownerId, tfId) {
+  const tfById = Object.fromEntries(data.timeframes.map((x) => [x.id, x]));
+  return data.objectives
+    .filter((o) => o.level === level && (level === "company" || o.ownerId === ownerId) && inCycle(o, tfId, tfById))
+    .sort((a, b) => (!!a.closed - !!b.closed));
+}
+export function avgProgress(list, objectives) {
+  if (!list.length) return null;
+  return list.reduce((s, o) => s + objectiveProgress(o, objectives), 0) / list.length;
+}
+export function initials(name = "") {
+  const n = name.trim();
+  if (!n) return "?";
+  if (/[\u3400-\u9fff]/.test(n)) return n.slice(0, 1);
+  const parts = n.split(/\s+/);
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
 }
 
 // ---------- KR quality helper (rule-based) ----------

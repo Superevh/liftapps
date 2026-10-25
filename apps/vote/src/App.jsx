@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppCtx, useApp, go } from './app-context.js'
-import { finishSignInRedirect } from './backend.js'
+import { finishSignInRedirect, strandedSignIn, clearStrandedSignIn } from './backend.js'
 import { Icon, Mark, ProviderMark } from './icons.jsx'
 import { useLang, setLang } from './lang.js'
 import { useTheme, setTheme } from './theme.js'
@@ -59,14 +59,20 @@ export default function App({ api }) {
     toastTimer.current = setTimeout(() => setToastMsg(null), 3200)
   }, [])
 
+  const [authError, setAuthError] = useState(null)
   useEffect(() => api.auth.onChange((u, event) => {
     setUser(u)
     setAuthReady(true)
-    if (u) setAuthOpen(false)
+    if (u) { setAuthOpen(false); setAuthError(null); clearStrandedSignIn() }
     if (event === 'PASSWORD_RECOVERY') setRecovering(true)
-    const err = finishSignInRedirect()
-    if (err) toast(t('signInFailed', { e: err }))
+    const back = finishSignInRedirect()
+    // Coming back from Google / GitHub / an email link with an error: reopen sign-in and explain it there.
+    if (back && !u) { setAuthError(back); setAuthOpen(true) }
   }), [api]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Came back with ?code=… but no session could be made from it (e.g. the link was opened in another browser).
+  useEffect(() => {
+    api.auth.redirectResult?.().then(r => { if (r) { setAuthError(r); setAuthOpen(true) } }, () => {})
+  }, [api])
 
   const ctx = useMemo(() => ({ api, user, authReady, openSignIn: () => setAuthOpen(true), toast, go }), [api, user, authReady, toast])
 
@@ -87,7 +93,7 @@ export default function App({ api }) {
         {!bare && <Topbar wide={route.name === 'edit'} />}
         <Suspense fallback={<Spinner />}>{page}</Suspense>
       </div>
-      {authOpen && !user && <AuthModal onClose={() => setAuthOpen(false)} />}
+      {authOpen && !user && <AuthModal initialError={authError} onClose={() => { setAuthOpen(false); setAuthError(null) }} />}
       {recovering && <RecoveryModal onDone={() => setRecovering(false)} />}
       {toastMsg && <div className="toast" role="status">{toastMsg}</div>}
     </AppCtx.Provider>
@@ -177,7 +183,29 @@ function Topbar({ wide }) {
   )
 }
 
-function AuthModal({ onClose }) {
+// Turn a Supabase auth error (code, status, message) into a clear sentence in the current language.
+export function authMessage(e, t) {
+  const code = e?.code || '', msg = String(e?.message ?? e ?? ''), status = e?.status || 0
+  const has = re => re.test(msg)
+  if (code === 'invalid_credentials' || has(/invalid login credentials/i)) return t('errCredentials')
+  if (code === 'email_not_confirmed' || has(/email not confirmed/i)) return t('errNotConfirmed')
+  if (code === 'user_already_exists' || code === 'email_exists' || has(/already registered|already exists/i)) return t('errExists')
+  if (code === 'over_email_send_rate_limit' || code === 'over_request_rate_limit' || status === 429 || has(/rate limit|only request this after/i)) return t('errRateLimit')
+  if (code === 'email_address_not_authorized' || has(/not authorized/i)) return t('errEmailNotAuthorized')
+  if (has(/error sending .*email|sending (confirmation|magic link|recovery)/i) || status === 500 && has(/email/i)) return t('errEmailSend')
+  if (code === 'signup_disabled' || has(/signups? not allowed/i)) return t('errSignupDisabled')
+  if (code === 'email_provider_disabled' || has(/email logins are disabled/i)) return t('errEmailDisabled')
+  if (code === 'provider_disabled' || has(/provider is not enabled|unsupported provider/i)) return t('errProviderDisabled')
+  if (code === 'weak_password' || has(/password should be/i)) return t('passwordPh')
+  if (code === 'email_address_invalid' || has(/invalid.*email|email.*invalid/i)) return t('errEmailInvalid')
+  if (code === 'otp_expired' || has(/expired|invalid.*link/i)) return t('errLinkExpired')
+  if (/flow_state|code_verifier|bad_code_verifier/.test(code) || has(/flow state|code verifier/i)) return t('errOtherBrowser')
+  if (code === 'access_denied' || has(/access.?denied|cancel/i)) return t('errCancelled')
+  if (has(/failed to fetch|network|load failed/i)) return t('errNetwork')
+  return t('signInFailed', { e: msg || code || '?' })
+}
+
+function AuthModal({ onClose, initialError }) {
   const { api: { auth } } = useApp()
   const t = useT()
   const [mode, setMode] = useState('password')
@@ -185,25 +213,43 @@ function AuthModal({ onClose }) {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(null)
   const [notice, setNotice] = useState(null)
-  const [error, setError] = useState(null)
-  const run = (key, fn) => { setBusy(key); setError(null); return fn().then(() => setBusy(null), e => { setError(t('signInFailed', { e: e.message })); setBusy(null) }) }
+  const [error, setError] = useState(() => (initialError ? { text: authMessage(initialError, t), code: initialError.code } : null))
+  const [cfg, setCfg] = useState(null)
+  const [stranded] = useState(() => { const m = strandedSignIn(); clearStrandedSignIn(); return m })
+  useEffect(() => { let on = true; auth.settings?.().then(c => { if (on) setCfg(c) }); return () => { on = false } }, [auth])
+  const fail = e => setError({ text: authMessage(e, t), code: e?.code || (/email not confirmed/i.test(e?.message) ? 'email_not_confirmed' : '') })
+  const run = (key, fn) => { setBusy(key); setError(null); return fn().then(() => setBusy(null), e => { fail(e); setBusy(null) }) }
   const to = email.trim()
-  const send = e => { e.preventDefault(); if (to) run('email', () => auth.sendLink(to).then(() => { if (!auth.local) setNotice(t('linkSent', { email: to })) })) }
+  const available = p => !cfg || cfg.providers[p] !== false
+  const emailOn = !cfg || cfg.providers.email
+  const signupOn = !cfg || !cfg.signupDisabled
+  const send = e => { e.preventDefault(); if (to) run('email', () => auth.sendLink(to).then(() => { if (!auth.local) setNotice({ text: t('linkSent', { email: to }) }) })) }
   const signIn = e => { e.preventDefault(); if (to && (password || auth.local)) run('password', () => auth.signInPassword(to, password)) }
   const signUp = () => {
-    if (!to) return setError(t('enterEmailFirst'))
-    if (password.length < 6 && !auth.local) return setError(t('passwordPh'))
-    run('signup', () => auth.signUp(to, password).then(confirm => { if (confirm) setNotice(t('confirmSent', { email: to })) }))
+    if (!to) return setError({ text: t('enterEmailFirst') })
+    if (password.length < 6 && !auth.local) return setError({ text: t('passwordPh') })
+    run('signup', () => auth.signUp(to, password).then(r => {
+      if (r === 'exists') setError({ text: t('errExists') })
+      else if (r === 'confirm' || r === true) setNotice({ text: t('confirmSent', { email: to }), resend: true })
+    }))
+  }
+  const resend = () => {
+    if (!to) return setError({ text: t('enterEmailFirst') })
+    run('resend', () => auth.resendConfirmation(to).then(() => setNotice({ text: t('confirmResent', { email: to }) })))
   }
   const forgot = () => {
-    if (!to) return setError(t('enterEmailFirst'))
-    run('reset', () => auth.resetPassword(to).then(() => setNotice(t('resetSent', { email: to }))))
+    if (!to) return setError({ text: t('enterEmailFirst') })
+    run('reset', () => auth.resetPassword(to).then(() => setNotice({ text: t('resetSent', { email: to }) })))
   }
   useEffect(() => {
     const onKey = e => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+  const providerBtn = (p, label) => available(p)
+    ? <button className="btn auth-btn" disabled={!!busy} onClick={() => run(p, () => auth.signIn(p))}><ProviderMark name={p} /> {label}</button>
+    : <button className="btn auth-btn" disabled title={t('providerOff')}><ProviderMark name={p} /> {label}<span className="auth-off">{t('notAvailable')}</span></button>
+  const unavailable = auth.providers.filter(p => !available(p))
   return (
     <div className="modal-backdrop auth-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal auth-modal" role="dialog" aria-modal="true" aria-label={t('signInTitle')}>
@@ -212,14 +258,20 @@ function AuthModal({ onClose }) {
         <h2>{t('signInTitle')}</h2>
         <p className="muted">{t('signInHint')}</p>
         {auth.local && <p className="auth-sent"><Icon name="info" /> {t('localMode')}</p>}
+        {stranded && !error && <p className="auth-note" role="status"><Icon name="info" /> {t('strandedNote', { p: stranded === 'github' ? 'GitHub' : 'Google' })}</p>}
         {auth.providers.length > 0 && <>
           <div className="auth-providers">
-            {auth.providers.includes('google') && <button className="btn auth-btn" disabled={!!busy} onClick={() => run('google', () => auth.signIn('google'))}><ProviderMark name="google" /> {t('withGoogle')}</button>}
-            {auth.providers.includes('github') && <button className="btn auth-btn" disabled={!!busy} onClick={() => run('github', () => auth.signIn('github'))}><ProviderMark name="github" /> {t('withGithub')}</button>}
+            {auth.providers.includes('google') && providerBtn('google', t('withGoogle'))}
+            {auth.providers.includes('github') && providerBtn('github', t('withGithub'))}
           </div>
-          <div className="auth-or"><span>{t('orEmail')}</span></div>
+          {unavailable.length > 0 && <p className="auth-note small"><Icon name="info" /> {t('providerOff')}</p>}
+          {emailOn && <div className="auth-or"><span>{t('orEmail')}</span></div>}
         </>}
-        {notice ? <p className="auth-sent" role="status"><Icon name="mail" /> {notice}</p> : auth.local ? (
+        {!emailOn && !auth.local ? <p className="auth-note"><Icon name="info" /> {t('errEmailDisabled')}</p>
+        : notice ? <>
+          <p className="auth-sent" role="status"><Icon name="mail" /> {notice.text}</p>
+          {notice.resend && <button type="button" className="link-btn small" disabled={!!busy} onClick={resend}>{t('resendConfirm')}</button>}
+        </> : auth.local ? (
           <form className="auth-email" onSubmit={signIn}>
             <input type="email" required autoFocus autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('emailPh')} aria-label="Email" />
             <button className="btn primary" disabled={!!busy || !to}>{t('signIn')}</button>
@@ -233,6 +285,7 @@ function AuthModal({ onClose }) {
             <form className="auth-email" onSubmit={send}>
               <input type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('emailPh')} aria-label="Email" />
               <button className="btn primary" disabled={!!busy || !to}><Icon name="mail" /> {t('sendLink')}</button>
+              <p className="auth-hint">{t('linkHint')}</p>
             </form>
           ) : (
             <form className="auth-email" onSubmit={signIn}>
@@ -240,13 +293,15 @@ function AuthModal({ onClose }) {
               <input type="password" required minLength={6} autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t('passwordPh')} aria-label={t('tabPassword')} />
               <button className="btn primary" disabled={!!busy || !to || !password}>{t('signIn')}</button>
               <div className="auth-row">
-                <button type="button" className="link-btn" disabled={!!busy} onClick={signUp}>{t('createAccount')}</button>
+                {signupOn ? <button type="button" className="link-btn" disabled={!!busy} onClick={signUp}>{t('createAccount')}</button> : <span className="auth-hint">{t('errSignupDisabled')}</span>}
                 <button type="button" className="link-btn muted-link" disabled={!!busy} onClick={forgot}>{t('forgotPassword')}</button>
               </div>
+              {signupOn && cfg && !cfg.autoconfirm && <p className="auth-hint">{t('confirmHint')}</p>}
             </form>
           )}
         </>}
-        {error && <p className="auth-error" role="alert">{error}</p>}
+        {error && <p className="auth-error" role="alert">{error.text}</p>}
+        {error?.code === 'email_not_confirmed' && <button type="button" className="link-btn small" disabled={!!busy} onClick={resend}>{t('resendConfirm')}</button>}
       </div>
     </div>
   )
@@ -261,7 +316,7 @@ function RecoveryModal({ onDone }) {
   const save = e => {
     e.preventDefault()
     setState('busy')
-    auth.updatePassword(password).then(() => setState('done'), err => setState(err.message))
+    auth.updatePassword(password).then(() => setState('done'), err => setState(authMessage(err, t)))
   }
   return (
     <div className="modal-backdrop auth-backdrop">
@@ -277,7 +332,7 @@ function RecoveryModal({ onDone }) {
             <input type="password" required minLength={6} autoFocus autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t('passwordPh')} aria-label={t('tabPassword')} />
             <button className="btn primary" disabled={state === 'busy' || password.length < 6}>{t('savePassword')}</button>
           </div>
-          {state && state !== 'busy' && <p className="auth-error" role="alert">{t('signInFailed', { e: state })}</p>}
+          {state && state !== 'busy' && <p className="auth-error" role="alert">{state}</p>}
         </>}
       </form>
     </div>

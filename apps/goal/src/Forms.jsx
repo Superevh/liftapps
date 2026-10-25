@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useApp } from "./ctx.js";
 import {
-  LEVELS, PARENT_LEVEL, uid, alignmentCandidates, ownerName, parentUnitOf, tfLabel, currentTimeframe, objectiveProgress, lastCheckin, krProgress,
+  LEVELS, PARENT_LEVEL, uid, alignmentCandidates, ownerName, parentUnitOf, tfLabel, currentTimeframe, objectiveProgress,
 } from "./logic.js";
-import { Modal, QualityHint, LevelBadge } from "./ui.jsx";
+import { Modal, QualityHint } from "./ui.jsx";
 
 function defaultOwner(data, level) {
   if (level === "company") return "company";
@@ -12,23 +12,32 @@ function defaultOwner(data, level) {
   return data.people[0]?.id || "";
 }
 
+// A sensible default lead: someone who belongs to the owning unit.
+function defaultLead(data, level, ownerId) {
+  if (level === "company") return data.people.find((p) => !p.deptId && !p.teamId)?.id;
+  if (level === "department") return data.people.find((p) => p.deptId === ownerId && !p.teamId)?.id || data.people.find((p) => p.deptId === ownerId)?.id;
+  if (level === "team") return data.people.find((p) => p.teamId === ownerId)?.id;
+  return ownerId;
+}
+
 export function ObjectiveForm({ obj, preset, onClose }) {
-  const { t, lang, data, update, openObjective, filters, timeframes } = useApp();
+  const { t, lang, data, update, openObjective, tf, timeframes } = useApp();
   const editing = !!obj;
   const initLevel = obj?.level || preset?.level || "company";
-  const selTf = filters.tf !== "all" ? filters.tf : currentTimeframe(data.timeframes)?.id;
+  const selTf = preset?.timeframeId || tf || currentTimeframe(data.timeframes)?.id;
   const [f, setF] = useState(() => obj ? {
     title: obj.title, description: obj.description || "", level: obj.level, ownerId: obj.ownerId, leadId: obj.leadId, timeframeId: obj.timeframeId,
     parent: obj.parent ? `${obj.parent.type}:${obj.parent.id}` : "", driver: obj.driver || "krs",
   } : {
-    title: "", description: "", level: initLevel, ownerId: defaultOwner(data, initLevel), leadId: data.people[0]?.id || "", timeframeId: selTf || data.timeframes[0]?.id,
-    parent: preset?.parent || "", driver: "krs",
+    title: "", description: "", level: initLevel, ownerId: preset?.ownerId || defaultOwner(data, initLevel),
+    leadId: initLevel === "personal" ? (preset?.ownerId || defaultOwner(data, initLevel)) : (defaultLead(data, initLevel, preset?.ownerId) || data.people[0]?.id || ""),
+    timeframeId: selTf || data.timeframes[0]?.id, parent: preset?.parent || "", driver: "both",
   });
   const [err, setErr] = useState("");
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const setLevel = (level) => setF((s) => {
     const ownerId = defaultOwner(data, level);
-    return { ...s, level, ownerId, parent: "", leadId: level === "personal" ? ownerId : s.leadId };
+    return { ...s, level, ownerId, parent: "", leadId: level === "personal" ? ownerId : (defaultLead(data, level, ownerId) || s.leadId) };
   });
   const setOwner = (ownerId) => setF((s) => ({ ...s, ownerId, leadId: s.level === "personal" ? ownerId : s.leadId }));
 
@@ -63,15 +72,15 @@ export function ObjectiveForm({ obj, preset, onClose }) {
   return (
     <Modal title={editing ? t("editObjective") : t("newObjective")} onClose={onClose} wide>
       <form onSubmit={submit} className="form" data-form="objective">
-        <fieldset className="levelpick">
+        <fieldset className="seg levelseg">
           <legend>{t("level")}</legend>
           {LEVELS.map((l) => (
-            <label key={l} className={`lp lp-${l}${f.level === l ? " on" : ""}`}>
+            <label key={l} className={f.level === l ? "on" : ""}>
               <input type="radio" name="level" value={l} checked={f.level === l} onChange={() => setLevel(l)} />
-              <LevelBadge level={l} />
-              <small>{t(`levelHint_${l}`)}</small>
+              <i className={`nav-dot l-${l}`} aria-hidden="true" />{t(`level_${l}`)}
             </label>
           ))}
+          <small className="hint">{t(`levelHint_${f.level}`)}</small>
         </fieldset>
         <label className="field"><span>{t("title")}</span>
           <input name="title" value={f.title} onChange={(e) => set("title", e.target.value)} placeholder={t("objTitlePh")} autoFocus required />
@@ -181,50 +190,6 @@ export function KrForm({ objId, kr, onClose }) {
           <label className="field"><span>{t("weight")}</span><input type="number" min="0" step="0.5" value={f.weight} onChange={(e) => set("weight", e.target.value)} /></label>
         </div>
         <QualityHint kr={f} endLabel={endLabel} />
-        <div className="form-actions"><button type="button" className="btn ghost" onClick={onClose}>{t("cancel")}</button><button className="btn primary" type="submit">{t("save")}</button></div>
-      </form>
-    </Modal>
-  );
-}
-
-export function CheckinForm({ objId, krId, onClose }) {
-  const { t, data, update } = useApp();
-  const obj = data.objectives.find((o) => o.id === objId);
-  const kr = obj?.krs.find((k) => k.id === krId);
-  const last = kr && lastCheckin(kr);
-  const [value, setValue] = useState(kr?.current ?? 0);
-  const [done, setDone] = useState(!!kr?.done);
-  const [confidence, setConfidence] = useState(last?.confidence || "on_track");
-  const [comment, setComment] = useState("");
-  if (!kr) return null;
-  const preview = krProgress({ ...kr, current: Number(value), done });
-  const submit = (e) => {
-    e.preventDefault();
-    update((d) => {
-      const k = d.objectives.find((x) => x.id === objId).krs.find((x) => x.id === krId);
-      if (k.type === "milestone") k.done = done; else k.current = Number(value);
-      k.checkins.push({ id: uid(), at: new Date().toISOString(), value: k.type === "milestone" ? (done ? 1 : 0) : Number(value), done, confidence, comment: comment.trim(), by: k.leadId || obj.leadId });
-    });
-    onClose();
-  };
-  return (
-    <Modal title={`${t("checkinTitle")}: ${kr.title}`} onClose={onClose}>
-      <form onSubmit={submit} className="form" data-form="checkin">
-        {kr.type === "metric" ? (
-          <label className="field"><span>{t("newValue")} ({t("start")} {kr.start} → {t("target")} {kr.target}{kr.unit ? ` ${kr.unit}` : ""})</span>
-            <input name="value" type="number" step="any" value={value} onChange={(e) => setValue(e.target.value)} autoFocus />
-          </label>
-        ) : (
-          <label className="chk"><input name="done" type="checkbox" checked={done} onChange={(e) => setDone(e.target.checked)} /> {t("done")}</label>
-        )}
-        <p className="muted small">{t("progress")}: {Math.round(preview * 100)}%</p>
-        <fieldset className="conf">
-          <legend>{t("confidence")}</legend>
-          {["on_track", "at_risk", "off_track"].map((c) => (
-            <label key={c} className={`cf cf-${c}${confidence === c ? " on" : ""}`}><input type="radio" name="confidence" value={c} checked={confidence === c} onChange={() => setConfidence(c)} /><b aria-hidden="true" />{t(`status_${c}`)}</label>
-          ))}
-        </fieldset>
-        <label className="field"><span>{t("comment")}</span><textarea name="comment" rows={3} value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("commentPh")} /></label>
         <div className="form-actions"><button type="button" className="btn ghost" onClick={onClose}>{t("cancel")}</button><button className="btn primary" type="submit">{t("save")}</button></div>
       </form>
     </Modal>

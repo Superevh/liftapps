@@ -98,6 +98,7 @@ export function clean(r) {
     return {
       id: str(i.id, 40) || uid(), laneId: ids.has(i.laneId) ? i.laneId : lanes[0].id, title: str(i.title, 200), start, end,
       status: STATUSES.includes(i.status) ? i.status : 'planned', note: str(i.note, 4000), link: safeLink(str(i.link, 1000)),
+      ...(Number.isInteger(i.order) && i.order >= 0 && i.order < 100000 ? { order: i.order } : {}),
     }
   })
   return { id: str(r.id, 40) || uid(), name: str(r.name, 120) || 'Roadmap', lanes, items, updated: Number(r.updated) || Date.now() }
@@ -118,7 +119,7 @@ export async function encodeShare(r) {
   const laneIdx = new Map(r.lanes.map((l, i) => [l.id, i]))
   const compact = {
     v: 1, n: r.name, l: r.lanes.map(l => [l.name, PALETTE.findIndex(p => p.hex === l.color)]),
-    i: r.items.map(i => [laneIdx.get(i.laneId) ?? 0, i.title, i.start, i.end, STATUSES.indexOf(i.status), i.note || '', i.link || '']),
+    i: r.items.map(i => [laneIdx.get(i.laneId) ?? 0, i.title, i.start, i.end, STATUSES.indexOf(i.status), i.note || '', i.link || '', ...(Number.isInteger(i.order) ? [i.order] : [])]),
   }
   return b64url(await pipe(new TextEncoder().encode(JSON.stringify(compact)), new CompressionStream('deflate-raw')))
 }
@@ -126,7 +127,7 @@ export async function decodeShare(str) {
   const c = JSON.parse(new TextDecoder().decode(await pipe(unb64url(str), new DecompressionStream('deflate-raw'))))
   if (c.v !== 1) throw new Error('version')
   const lanes = c.l.map(([name, ci]) => ({ id: uid(), name, color: (PALETTE[ci] || PALETTE[0]).hex }))
-  const items = c.i.map(([li, title, start, end, si, note, link]) => ({ id: uid(), laneId: lanes[li]?.id, title, start, end, status: STATUSES[si] || 'planned', note, link }))
+  const items = c.i.map(([li, title, start, end, si, note, link, order]) => ({ id: uid(), laneId: lanes[li]?.id, title, start, end, status: STATUSES[si] || 'planned', note, link, order }))
   return clean({ id: 'shared', name: c.n, lanes, items })
 }
 export const SHARE_PREFIX = '#view='
