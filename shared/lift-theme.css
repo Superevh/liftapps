@@ -1,0 +1,13 @@
+/* Lift Apps light theme tokens. Import in every app so the family looks the same.
+   Ivory paper, bronze ink, champagne gold used sparingly (key word, active state, one primary button). */
+:root {
+  --lift-paper: #FBF8F2; --lift-paper-2: #F6F0E5; --lift-card: #FFFCF7; --lift-ink: #2B1E14;
+  --lift-ink-2: rgba(43,30,20,.76); --lift-ink-3: rgba(43,30,20,.7);
+  --lift-line: rgba(140,97,58,.16); --lift-line-2: rgba(140,97,58,.28);
+  --lift-gold: #CCA06A; --lift-gold-ink: #8C613A; --lift-gold-soft: rgba(204,160,106,.16);
+  --lift-sand: #DBBE94; --lift-walnut: #6A472D; --lift-sage: #A9C8AE; --lift-forest: #3E6E57; --lift-terracotta: #E2A27F;
+  --lift-display: "Noto Serif SC", "Songti SC", Georgia, serif;
+  --lift-body: Inter, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  --lift-radius: 16px;
+  --lift-btn: linear-gradient(180deg, #D8B07C, #CCA06A);
+}
