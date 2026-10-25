@@ -1,0 +1,60 @@
+// The Lift Apps catalogue. Edit this file to add an app or change its status.
+// status: live (has a url) | building | planned
+const GROUPS = [
+  { id: "ritual", name: "Team rituals", zh: "团队仪式", note: "The ceremonies every agile team runs", cat: "var(--c-ritual)" },
+  { id: "facil", name: "Facilitation", zh: "引导与互动", note: "Workshops, meetings and live audiences", cat: "var(--c-facil)" },
+  { id: "plan", name: "Planning & tracking", zh: "规划与跟踪", note: "From idea to backlog to board", cat: "var(--c-plan)" },
+  { id: "flow", name: "Flow & delivery", zh: "交付与度量", note: "Forecasts, releases and incidents", cat: "var(--c-flow)" },
+  { id: "team", name: "Team & knowledge", zh: "团队与知识", note: "How the team works and what it knows", cat: "var(--c-team)" },
+];
+
+// Line glyphs on a 24px grid.
+const GLYPHS = {
+  retro: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
+  point: '<rect x="3" y="6" width="8" height="12" rx="1.5"/><rect x="13" y="6" width="8" height="12" rx="1.5"/><path d="M7 10v4M17 10v4M15 12h4"/>',
+  standup: '<circle cx="12" cy="7" r="3"/><path d="M6 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M19 4l1.5-1.5M5 4L3.5 2.5"/>',
+  pulse: '<path d="M3 12h4l2-5 4 10 2-5h6"/>',
+  topic: '<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16M8 3v3M12 3v3"/>',
+  kudo: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+  vote: '<path d="M5 20V12M10 20V6M15 20v-9M20 20V4"/>',
+  quiz: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/>',
+  sketch: '<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 7l3 3"/>',
+  agenda: '<circle cx="12" cy="13" r="7"/><path d="M12 9v4l3 2M10 3h4"/>',
+  board: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/><path d="M5.5 8h1.5M11 8h1.5M11 11h1.5M17 8h1.5"/>',
+  sprint: '<path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/>',
+  road: '<path d="M4 20c4-1 6-5 8-9s4-7 8-7"/><circle cx="4" cy="20" r="1.5"/><circle cx="12" cy="11" r="1.5"/><circle cx="20" cy="4" r="1.5"/>',
+  story: '<rect x="3" y="4" width="5" height="4" rx="1"/><rect x="10" y="4" width="5" height="4" rx="1"/><rect x="17" y="4" width="4" height="4" rx="1"/><path d="M5.5 11v2M5.5 16v2M12.5 11v2M12.5 16v2M19 11v2"/>',
+  plan: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M8 12.5h5M13 12.5v5"/>',
+  goal: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 12l6-6M15 6h3v3"/>',
+  flow: '<path d="M3 17c3 0 4-10 9-10s6 10 9 10"/><path d="M3 21h18"/>',
+  ship: '<path d="M12 3l3 6-3 3-3-3z"/><path d="M9 9l-4 3 3 1M15 9l4 3-3 1M10 15l-1 5 3-2 3 2-1-5"/>',
+  status: '<circle cx="12" cy="12" r="8"/><path d="M8.5 12.5l2.3 2.3 4.7-5"/>',
+  incident: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/>',
+  team: '<circle cx="8" cy="9" r="2.5"/><circle cx="16" cy="9" r="2.5"/><path d="M3 19c0-2.8 2.2-5 5-5s5 2.2 5 5M11 19c0-2.8 2.2-5 5-5s5 2.2 5 5"/>',
+  note: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h5"/>',
+};
+
+const APPS = [
+  { g: "ritual", key: "retro", word: "Retro", zh: "复盘", role: "Retrospectives", desc: "Themed retro boards with voting and action items. AI groups the cards and drafts the actions.", status: "live", url: "https://fun-retro.com" },
+  { g: "ritual", key: "point", word: "Point", zh: "估点", role: "Planning poker", desc: "Estimate stories together with cards and a reveal, and see which stories are too vague to size.", status: "building" },
+  { g: "ritual", key: "standup", word: "Standup", zh: "站会", role: "Async standups", desc: "Yesterday, today and blockers without the meeting. Only the blockers get posted.", status: "planned" },
+  { g: "ritual", key: "pulse", word: "Pulse", zh: "健康度", role: "Team health checks", desc: "Run a health check each sprint and watch the trend, with a plain-language summary of what moved.", status: "building" },
+  { g: "ritual", key: "topic", word: "Topic", zh: "精益咖啡", role: "Lean Coffee", desc: "Propose topics, dot-vote, and time-box the conversation.", status: "building" },
+  { g: "ritual", key: "kudo", word: "Kudo", zh: "致谢", role: "Kudos walls", desc: "Thank-you cards and celebration boards for farewells, launches and milestones.", status: "building" },
+  { g: "facil", key: "vote", word: "Vote", zh: "投票", role: "Live polls & Q&A", desc: "Your audience joins with a code and results update live. AI clusters the questions.", status: "building" },
+  { g: "facil", key: "quiz", word: "Quiz", zh: "竞答", role: "Live quizzes", desc: "Timed questions and a live leaderboard for icebreakers and training.", status: "building" },
+  { g: "facil", key: "sketch", word: "Sketch", zh: "白板", role: "Whiteboard", desc: "A hand-drawn canvas for diagrams and workshops, with ready-made agile templates.", status: "building" },
+  { g: "facil", key: "agenda", word: "Agenda", zh: "工作坊", role: "Workshop agendas & timers", desc: "Plan a session block by block, then run it with timers. AI drafts the agenda from your goal.", status: "planned" },
+  { g: "plan", key: "board", word: "Board", zh: "看板", role: "Kanban boards", desc: "Lists, cards, labels and drag-and-drop, shared with the rest of the family.", status: "building" },
+  { g: "plan", key: "sprint", word: "Sprint", zh: "迭代", role: "Sprints & issues", desc: "Backlog, sprints and a sprint board, kept simple for small teams.", status: "building" },
+  { g: "plan", key: "road", word: "Road", zh: "路线图", role: "Discovery & roadmaps", desc: "Capture ideas, score them and share a roadmap people can read.", status: "building" },
+  { g: "plan", key: "story", word: "Story", zh: "故事地图", role: "User story mapping", desc: "Lay out the user journey and slice releases. AI drafts a first map from your requirements.", status: "planned" },
+  { g: "plan", key: "plan", word: "Plan", zh: "联合规划", role: "PI planning", desc: "A program board for many teams, with objectives and dependency lines.", status: "planned" },
+  { g: "plan", key: "goal", word: "Goal", zh: "目标", role: "OKRs", desc: "Objectives, key results and check-ins. AI turns vague key results into measurable ones.", status: "planned" },
+  { g: "flow", key: "flow", word: "Flow", zh: "预测", role: "Flow metrics & forecasts", desc: "Cycle time, throughput and Monte Carlo forecasts from a simple CSV export.", status: "building" },
+  { g: "flow", key: "ship", word: "Ship", zh: "发布说明", role: "Release notes", desc: "Publish what shipped. AI writes the notes from merged pull requests.", status: "planned" },
+  { g: "flow", key: "status", word: "Status", zh: "状态页", role: "Status pages", desc: "Public uptime and incident updates for your customers.", status: "planned" },
+  { g: "flow", key: "incident", word: "Incident", zh: "事故复盘", role: "Incident reviews", desc: "Blameless postmortems built around a clear timeline.", status: "planned" },
+  { g: "team", key: "team", word: "Team", zh: "团队画布", role: "Team canvas & agreements", desc: "Team charter, working agreements, skills matrix and motivators in one place.", status: "building" },
+  { g: "team", key: "note", word: "Note", zh: "知识库", role: "Team knowledge base", desc: "Linked notes and team docs that the other apps can point to.", status: "building" },
+];
