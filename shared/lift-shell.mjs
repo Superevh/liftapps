@@ -76,8 +76,8 @@ class LiftBar extends HTMLElement {
     const home = SITE + (zh ? "/zh/" : "/");
     this.root.innerHTML = `<style>${CSS}</style>
       <div class="bar">
-        <a class="home" href="${home}" aria-label="Lift Apps"><img src="${SITE}/assets/mark.png" alt="" /><span>Lift Apps</span></a>
-        ${app ? `<span class="sep"></span><span class="cur">${liftIcon(app.key, "bar")}${app.word}<i>Lift</i></span>` : ""}
+        <a class="home" href="${home}" aria-label="Lift Apps"><img src="/assets/mark.png" alt="" width="22" height="22" /><span>Lift Apps</span></a>
+        ${app ? `<span class="sep"></span><span class="cur">${liftIcon(app.key, "bar")}<span>${app.word}<i>Lift</i></span></span>` : ""}
         <button class="switch" aria-expanded="false" aria-haspopup="true">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><circle cx="2" cy="2" r="1.6"/><circle cx="7" cy="2" r="1.6"/><circle cx="12" cy="2" r="1.6"/><circle cx="2" cy="7" r="1.6"/><circle cx="7" cy="7" r="1.6"/><circle cx="12" cy="7" r="1.6"/><circle cx="2" cy="12" r="1.6"/><circle cx="7" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/></svg>
           <span>${zh ? "全部应用" : "All apps"}</span></button>

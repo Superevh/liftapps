@@ -1,0 +1,109 @@
+/* ---------- meeting cost (builds on the tool page and forecast .fc-* styles) ---------- */
+.mc-tabs { align-self: flex-start; }
+.mc-running { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.mc-danger { color: var(--danger) !important; border-color: var(--danger) !important; }
+
+.mc-live { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.mc-meter { display: flex; flex-direction: column; gap: 14px; }
+.mc-meter-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mc-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.mc-ticker { display: flex; flex-direction: column; gap: 10px; }
+.mc-cost { font-size: clamp(44px, 8vw, 76px); font-weight: 750; line-height: 1.05; letter-spacing: -.02em; color: var(--heading); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.mc-ticker.on .mc-cost { color: var(--bronze); }
+.mc-ticker.over .mc-cost { color: var(--danger); }
+.mc-facts { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13.5px; color: var(--ink-soft); }
+.mc-facts b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.mc-progress { display: flex; flex-direction: column; gap: 4px; color: var(--ink-soft); }
+.mc-bar { height: 8px; border-radius: 99px; background: var(--sunk); overflow: hidden; }
+.mc-bar i { display: block; height: 100%; border-radius: 99px; background: var(--gold); transition: width .2s linear; }
+.mc-ticker.over .mc-bar i { background: var(--danger); }
+.mc-ticker.over .mc-progress { color: var(--danger); font-weight: 600; }
+
+.mc-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mc-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.mc-quick > .muted { flex-basis: 100%; }
+.mc-quick-role { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; max-width: 100%; }
+.mc-quick-role .ellipsis { max-width: 130px; }
+.mc-awake { margin: 0; }
+
+.mc-stepper { display: inline-flex; align-items: center; gap: 4px; }
+.mc-stepper .btn { width: 30px; padding: 0; font-size: 16px; }
+.mc-stepper input { width: 56px; text-align: center; padding: 5px 4px; }
+
+.mc-treats { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.mc-treat-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.mc-treat { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 999px; background: var(--gold-soft); border: 1px solid var(--gold-line); font-size: 13.5px; }
+.mc-treat i { font-style: normal; }
+.mc-treat b { font-variant-numeric: tabular-nums; color: var(--heading); }
+.mc-prices summary, .mc-more summary { cursor: pointer; color: var(--brand); font-weight: 600; }
+.mc-price-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.mc-price-row label { display: flex; flex-direction: column; gap: 3px; width: 110px; }
+
+.mc-setup h2 { margin-bottom: 0; }
+.mc-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.mc-fields.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mc-fields small, .mc-planned small { display: block; margin-top: 5px; font-size: 12px; line-height: 1.45; }
+.mc-fields input[type="range"] { width: 100%; padding: 0; height: 37px; accent-color: var(--bronze); }
+.mc-mode { margin-top: 14px; }
+.mc-rate { display: flex; gap: 6px; }
+.mc-rate input { min-width: 0; flex: 1; }
+.mc-rate select { flex: none; width: auto; }
+.mc-planned { display: block; max-width: 220px; }
+.mc-more { margin-top: 14px; }
+.mc-share { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.mc-share input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+.mc-roles { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.mc-role { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "name step x" "rate rate hourly"; gap: 6px 8px; align-items: center; padding: 10px; border-radius: 10px; background: var(--sunk); }
+.mc-role-name { grid-area: name; min-width: 0; }
+.mc-role .mc-stepper { grid-area: step; }
+.mc-role > label { grid-area: rate; }
+.mc-role > label .field-label { display: none; }
+.mc-role-hourly { grid-area: hourly; white-space: nowrap; text-align: right; }
+.mc-role .icon-btn { grid-area: x; }
+.mc-roles > .btn { align-self: flex-start; }
+
+.mc-plan { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.mc-whatif { margin-top: 18px; }
+.mc-compare { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.mc-compare div { display: grid; grid-template-columns: 80px minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 13px; }
+.mc-compare span { color: var(--ink-soft); font-weight: 600; }
+.mc-compare i { display: block; height: 14px; min-width: 2px; border-radius: 4px; background: var(--bronze); }
+.mc-compare .alt i { background: var(--gold); }
+.mc-compare b { font-variant-numeric: tabular-nums; color: var(--heading); }
+.mc-verdict { font-size: 15px; font-weight: 600; color: var(--heading); margin: 0 0 10px; }
+.mc-table-wrap { overflow-x: auto; }
+.mc-table .num { text-align: right; white-space: nowrap; }
+.mc-table th.num { text-align: right; }
+.mc-table td.pos { color: var(--forest); font-weight: 600; }
+.mc-table td.neg { color: var(--danger); font-weight: 600; }
+.mc-htitle { max-width: 220px; }
+
+/* Present mode */
+.mc-present { position: fixed; inset: 0; z-index: 1100; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--hero-bg), var(--bg); color: var(--ink); overflow-y: auto; }
+.mc-present .mc-exit { position: absolute; top: 16px; right: 16px; }
+.mc-present-body { display: flex; flex-direction: column; align-items: center; gap: 20px; width: min(980px, 100%); text-align: center; }
+.mc-present .mc-label, .mc-present .muted { color: var(--ink-soft); }
+.mc-present .mc-ticker { align-items: center; width: 100%; }
+.mc-present .mc-cost { font-size: clamp(56px, 14vw, 170px); color: var(--heading); }
+.mc-present .mc-ticker.on .mc-cost { color: var(--bronze); }
+.mc-present .mc-ticker.over .mc-cost { color: var(--danger); }
+.mc-present .mc-facts { justify-content: center; font-size: clamp(14px, 2vw, 20px); color: var(--ink-soft); }
+.mc-present .mc-facts b { color: var(--heading); }
+.mc-present .mc-progress { width: min(640px, 100%); color: var(--ink-soft); }
+.mc-present .mc-controls, .mc-present .mc-quick, .mc-present .mc-treat-list { justify-content: center; }
+.mc-present .mc-quick, .mc-present .mc-treats { width: min(640px, 100%); align-items: center; }
+
+@media (max-width: 900px) {
+  .mc-live, .mc-plan { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .mc-fields, .mc-fields.three { grid-template-columns: minmax(0, 1fr); }
+  .mc-facts { gap: 4px 12px; font-size: 13px; }
+  .mc-controls .btn.lg { flex: 1 1 auto; }
+  .mc-compare div { grid-template-columns: 64px minmax(0, 1fr); }
+  .mc-compare b { grid-column: 2; }
+  .mc-tabs { align-self: stretch; overflow-x: auto; }
+  .mc-tabs button { flex: 1 0 auto; }
+}

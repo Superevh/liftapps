@@ -1,0 +1,52 @@
+/* My presentations + template picker. */
+.dash-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.dash-head h1 { font-size: 28px; letter-spacing: -.015em; }
+.dash-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.dash-search { position: relative; flex: 1; min-width: 220px; max-width: 420px; }
+.dash-search .icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--ink-faint); }
+.dash-search input { padding-left: 34px; height: 38px; }
+.dash-empty { display: grid; gap: 20px; }
+.dash-empty .empty { display: grid; justify-items: center; gap: 6px; color: var(--ink-soft); }
+.dash-empty .empty h2 { font-size: 20px; }
+.dash-empty .empty p { margin: 0; }
+.dash-join { margin-top: 28px; max-width: 460px; }
+
+.pres-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+.pres-card { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; transition: box-shadow .15s, transform .15s; }
+.pres-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+.pres-cover { position: relative; display: flex; align-items: flex-end; justify-content: space-between; height: 92px; padding: 12px 14px; background:
+  radial-gradient(circle at 88% 10%, color-mix(in srgb, var(--c) 30%, transparent), transparent 60%),
+  linear-gradient(150deg, color-mix(in srgb, var(--c) 22%, var(--panel-2)), color-mix(in srgb, var(--c) 8%, var(--panel))); }
+.pres-cover-ico { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--panel); color: color-mix(in srgb, var(--c) 80%, var(--ink)); box-shadow: var(--shadow); }
+.pres-types { display: flex; gap: 4px; }
+.pres-types span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: color-mix(in srgb, var(--panel) 85%, transparent); color: var(--ink-soft); }
+.pres-body { display: grid; gap: 6px; padding: 12px 14px 4px; }
+.pres-title { font-size: 16px; font-weight: 600; color: var(--heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pres-title:hover { text-decoration: underline; text-decoration-color: var(--gold-line); }
+.pres-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-soft); }
+.pres-meta .pill { letter-spacing: .04em; }
+.pres-actions { display: flex; align-items: center; gap: 6px; padding: 10px 14px 12px; margin-top: auto; border-top: 1px solid var(--line); min-height: 50px; flex-wrap: wrap; }
+.pres-confirm { flex: 1; font-weight: 600; color: var(--danger); font-size: 13px; }
+.btn.danger-btn { background: var(--danger); color: var(--brand-ink); }
+
+.tpl-modal { max-width: 1040px; }
+.tpl-modal .modal-head { align-items: flex-start; }
+.tpl-modal .modal-head p { margin: 4px 0 0; }
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 8px; }
+.tpl-card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 16px; border-radius: 14px; background: color-mix(in srgb, var(--c) 6%, var(--panel)); border: 1px solid color-mix(in srgb, var(--c) 22%, var(--line)); box-shadow: var(--shadow); transition: transform .15s, box-shadow .15s, border-color .15s; }
+.tpl-card:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: color-mix(in srgb, var(--c) 55%, var(--line)); }
+.tpl-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.tpl-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; background: color-mix(in srgb, var(--c) 18%, var(--panel)); color: color-mix(in srgb, var(--c) 85%, var(--ink)); }
+[data-theme="dark"] .tpl-ico, [data-theme="dark"] .pres-cover-ico { color: color-mix(in srgb, var(--c) 45%, var(--ivory)); }
+.tpl-count { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.tpl-card b { font-size: 15.5px; color: var(--heading); }
+.tpl-desc { font-size: 13px; color: var(--ink-soft); line-height: 1.4; flex: 1; }
+.tpl-types { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; color: var(--ink-soft); }
+.tpl-types span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--sunk); }
+.tpl-use { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font-weight: 600; font-size: 13px; color: var(--brand); }
+.tpl-grid.inline { margin-top: 0; }
+
+@media (max-width: 640px) {
+  .dash-head h1 { font-size: 22px; }
+  .pres-grid { grid-template-columns: 1fr; }
+}
