@@ -30,7 +30,7 @@ const T = {
     aboutEyebrow: "About", aboutTitle: "Made by AIYun.",
     about: ["AIYun (AI云) builds practical AI products. Lift Apps brings the tools an agile team reaches for every week into one calm, consistent family.", "Let AI lift us higher."],
     footerApps: "Apps", footerNote: "Lift Apps™ by AIYun", rights: "© 2026 AIYun",
-    crumbsHome: "Lift Apps", whatItDoes: "What it does", whereFits: "Where it fits in the cycle", prev: "Previous", next: "Next",
+    crumbsHome: "Lift Apps", readMore: "Why it exists ↓", whyEyebrow: "Why", whyTitle: "The problem it solves", whatEyebrow: "What", whatTitle: (w) => `What ${w}Lift does`, howEyebrow: "How", howTitle2: "How it works", summaryEyebrow: "Summary", whatItDoes: "What it does", whereFits: "Where it fits in the cycle", prev: "Previous", next: "Next",
     openApp: (w) => `Open ${w}Lift`, allApps: "All apps", appTitle: (a) => `${a.word}Lift: ${a.en.label} · Lift Apps by AIYun`,
     nfTitle: "This page lifted off.", nfBody: "The page you were looking for isn't here. Try one of the apps instead.", nfHome: "Back to Lift Apps",
     retroNote: "Opens on fun-retro.com, where RetroLift runs today.",
@@ -55,7 +55,7 @@ const T = {
     aboutEyebrow: "关于", aboutTitle: "由 AI云 打造。",
     about: ["AI云（AIYun）专注做实用的 AI 产品。Lift 系列把敏捷团队每周都会用到的工具，整合成一个安静、统一的家族。", "Let AI lift us higher."],
     footerApps: "应用", footerNote: "Lift Apps™ · AI云出品", rights: "© 2026 AIYun",
-    crumbsHome: "Lift 系列", whatItDoes: "它能做什么", whereFits: "在交付周期中的位置", prev: "上一个", next: "下一个",
+    crumbsHome: "Lift 系列", readMore: "为什么需要它 ↓", whyEyebrow: "为什么", whyTitle: "它要解决的问题", whatEyebrow: "是什么", whatTitle: (w) => `${w}Lift 能做什么`, howEyebrow: "怎么用", howTitle2: "使用步骤", summaryEyebrow: "总结", whatItDoes: "它能做什么", whereFits: "在交付周期中的位置", prev: "上一个", next: "下一个",
     openApp: (w) => `打开 ${w}Lift`, allApps: "全部应用", appTitle: (a) => `${a.word}Lift：${a.zh.label} · AI云 Lift 系列`,
     nfTitle: "这个页面飞走了。", nfBody: "你要找的页面不在这里，试试下面的应用吧。", nfHome: "回到 Lift 系列",
     retroNote: "在 fun-retro.com 打开，RetroLift 目前运行在那里。",
@@ -201,6 +201,7 @@ function home(t) {
 function appPage(a, i, t) {
   const L = a[t.lang], prev = APPS[i - 1], next = APPS[i + 1];
   const shot = existsSync(`site/assets/shots/${a.key}-${t.lang}.png`) ? `/assets/shots/${a.key}-${t.lang}.png` : existsSync(`site/assets/shots/${a.key}.png`) ? `/assets/shots/${a.key}.png` : "";
+  const openBtn = `<a class="btn btn-gold" href="${appUrl(a)}"${ext(a)}>${t.openApp(a.word)} ↗</a>`;
   const body = `
 <section class="hero">
   <div class="glow" aria-hidden="true"></div>
@@ -213,28 +214,49 @@ function appPage(a, i, t) {
         <h1 class="app-title">${D(name(a))}</h1>
         <p class="app-role">${L.label}</p>
         <p class="lede">${L.line}</p>
-        <div class="cta"><a class="btn btn-gold" href="${appUrl(a)}"${ext(a)}>${t.openApp(a.word)} ↗</a><a class="btn btn-ghost" href="${t.prefix}/#apps">${t.allApps}</a></div>
+        <div class="cta">${openBtn}<a class="btn btn-ghost" href="#why">${t.readMore}</a></div>
         ${a.key === "retro" ? `<p class="app-role">${t.retroNote}</p>` : ""}
       </div>
     </div>
   </div>
 </section>
+<section id="why" class="section">
+  <div class="wrap split">
+    <div class="sec-head"><p class="eyebrow"><b>01</b> / ${t.whyEyebrow}</p><h2>${D(t.whyTitle)}</h2></div>
+    <div class="why"><p class="why-text">${L.why}</p><ul class="pains">${L.pains.map((x) => `<li>${x}</li>`).join("")}</ul></div>
+  </div>
+</section>
 <section class="section soft">
   <div class="wrap">
-    <div class="sec-head"><p class="eyebrow"><b>01</b> / ${t.whatItDoes}</p></div>
+    <div class="sec-head"><p class="eyebrow"><b>02</b> / ${t.whatEyebrow}</p><h2>${D(t.whatTitle(a.word))}</h2></div>
     <ul class="feats">${L.feats.map((f) => `<li>${f}</li>`).join("")}</ul>
     ${shot ? `<figure class="shot"><img src="${shot}" alt="${a.word}Lift" loading="lazy" width="1440" height="900" /></figure>` : ""}
   </div>
 </section>
 <section class="section">
   <div class="wrap">
-    <div class="sec-head"><p class="eyebrow"><b>02</b> / ${t.whereFits}</p></div>
+    <div class="sec-head"><p class="eyebrow"><b>03</b> / ${t.howEyebrow}</p><h2>${D(t.howTitle2)}</h2></div>
+    <ol class="steps">${L.how.map((x, n) => `<li><span class="step-n">${D(String(n + 1))}</span><p>${x}</p></li>`).join("")}</ol>
+  </div>
+</section>
+<section class="section soft">
+  <div class="wrap">
+    <div class="summary">
+      <p class="eyebrow"><b>04</b> / ${t.summaryEyebrow}</p>
+      <p class="summary-text">${D(L.summary)}</p>
+      <div class="cta">${openBtn}<a class="btn btn-ghost" href="${t.prefix}/#apps">${t.allApps}</a></div>
+    </div>
+  </div>
+</section>
+<section class="section">
+  <div class="wrap">
+    <div class="sec-head"><p class="eyebrow">${t.whereFits}</p></div>
     <ol class="chain">${APPS.map((x) => `<li><a href="${t.prefix}/${x.key}/"${x.key === a.key ? ' aria-current="page"' : ""}>${liftIcon(x.key, "ch")}${x.word}Lift</a></li>`).join("")}</ol>
     <div class="pager">${prev ? `<a href="${t.prefix}/${prev.key}/">← ${t.prev}: ${prev.word}Lift</a>` : "<span></span>"}${next ? `<a href="${t.prefix}/${next.key}/">${t.next}: ${next.word}Lift →</a>` : ""}</div>
   </div>
 </section>`;
-  return layout(t, { path: `/${a.key}/`, title: t.appTitle(a), desc: `${a.word}Lift: ${L.line}`, body, og: a.key,
-    jsonld: { "@context": "https://schema.org", "@type": "SoftwareApplication", name: `${a.word}Lift`, applicationCategory: "BusinessApplication", operatingSystem: "Web", url: `${ORIGIN}${t.prefix}/${a.key}/`, description: L.line, inLanguage: ["en", "zh-CN"], publisher: { "@type": "Organization", name: "AIYun" } } });
+  return layout(t, { path: `/${a.key}/`, title: t.appTitle(a), desc: L.summary, body, og: a.key,
+    jsonld: { "@context": "https://schema.org", "@type": "SoftwareApplication", name: `${a.word}Lift`, applicationCategory: "BusinessApplication", operatingSystem: "Web", url: `${ORIGIN}${t.prefix}/${a.key}/`, description: L.summary, inLanguage: ["en", "zh-CN"], publisher: { "@type": "Organization", name: "AIYun" } } });
 }
 
 function notFound(t) {

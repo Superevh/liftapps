@@ -155,3 +155,18 @@ html[lang="zh-CN"] .hero h1 { letter-spacing: 0; line-height: 1.16; }
 .notfound { padding-block: 120px; text-align: center; display: grid; gap: 18px; justify-items: center; }
 .notfound h1 { font-size: clamp(36px, 5vw, 56px); }
 section[id] { scroll-margin-top: 72px; }
+
+/* App page: why / how / summary */
+.split { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.4fr); gap: 40px; align-items: start; }
+.split .sec-head { margin-bottom: 0; }
+.why-text { font-size: 18px; line-height: 1.7; color: var(--ink); }
+.pains { margin: 22px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.pains li { display: flex; gap: 12px; align-items: baseline; padding: 14px 18px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); font-size: 15px; color: var(--ink-2); }
+.pains li::before { content: "—"; color: #B5603F; font-weight: 700; }
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; padding: 0; list-style: none; }
+.steps li { padding: 22px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--card); display: grid; gap: 12px; align-content: start; }
+.step-n { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold-ink); font-family: var(--display); font-weight: 700; }
+.steps p { font-size: 15px; color: var(--ink-2); }
+.summary { max-width: 820px; display: grid; gap: 18px; }
+.summary-text { font-family: var(--display); font-size: clamp(22px, 2.6vw, 30px); line-height: 1.45; font-weight: 700; }
+@media (max-width: 860px) { .split { grid-template-columns: 1fr; gap: 20px; } }
