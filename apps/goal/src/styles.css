@@ -315,6 +315,8 @@ button.ov-t:hover > :first-child { text-decoration: underline; text-underline-of
 }
 @media (max-width: 640px) {
   .toolbar { gap: 8px; }
+  .toolbar [data-new-obj] .new-l { display: none; }
+  .toolbar [data-new-obj] { padding-left: 11px; padding-right: 11px; }
   .cycle > .muted { display: none; }
   .phead { flex-direction: column; align-items: stretch; gap: 14px; padding-bottom: 16px; }
   .phead-r { width: 100%; }

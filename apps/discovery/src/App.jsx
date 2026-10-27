@@ -9,6 +9,23 @@ import MatrixView from './MatrixView.jsx'
 import TimelineView from './TimelineView.jsx'
 import IdeaPanel from './IdeaPanel.jsx'
 import { useT } from './lang.js'
+import { CloudMenu } from '../../../shared/cloud/CloudMenu.jsx'
+import { createWorkspace, openWorkspace, forgetWorkspace, workspaceUrl, liftIdentity } from '../../../shared/cloud/cloud.mjs'
+import { toCloud, workspaceName } from './sync.js'
+
+// The family-wide display name (shared with RetroLift and the other Lift apps), used for new projects.
+const identityName = () => { try { return liftIdentity().name ?? '' } catch { return '' } }
+function rememberName(name) {
+  try { const me = liftIdentity(); if (!me.name) localStorage.setItem('lift-identity', JSON.stringify({ ...me, name })) } catch { /* storage blocked */ }
+}
+
+// Sync status + share menu, placed in every view header.
+function Cloud({ onNotice }) {
+  const t = useT()
+  const { sync, newWorkspace } = useStore()
+  const onNew = () => newWorkspace().catch(() => onNotice(t('Couldn’t create a workspace right now. Check your connection and try again.')))
+  return <CloudMenu sync={sync} app="discovery" lang={t.lang} onNew={sync.mode === 'cloud' ? onNew : null} />
+}
 
 // Routes: #/view/:id?idea=KEY&layout=sidebar|full   #/archive   and read-only  #/share/:id?p=PROJECT&selectedIssue=KEY
 function parse() {
@@ -80,7 +97,7 @@ function CreateView({ section, close }) {
 
 function ProjectMenu({ onSettings, onNotice }) {
   const t = useT()
-  const { state, ws, dispatch } = useStore()
+  const { state, ws, dispatch, cloud } = useStore()
   const fileRef = useRef(null)
   const closeRef = useRef(() => {})
   const [naming, setNaming] = useState(false)
@@ -123,7 +140,7 @@ function ProjectMenu({ onSettings, onNotice }) {
             </button>
           ))}
           {naming ? (
-            <form className="row" onSubmit={e => { e.preventDefault(); if (!name.trim()) return; dispatch({ type: 'NEW_PROJECT', name: name.trim() }); setNaming(false); setName(''); navigate('/view'); close() }}>
+            <form className="row" onSubmit={e => { e.preventDefault(); if (!name.trim()) return; dispatch({ type: 'NEW_PROJECT', name: name.trim(), you: cloud ? identityName() : '' }); setNaming(false); setName(''); navigate('/view'); close() }}>
               <input autoFocus aria-label={t('Project name')} placeholder={t('Project name')} value={name} onChange={e => setName(e.target.value)} />
               <button className="btn primary" disabled={!name.trim()}>{t('Create')}</button>
             </form>
@@ -139,7 +156,7 @@ function ProjectMenu({ onSettings, onNotice }) {
           <div className="menu-sep" />
           {confirmDelete ? (
             <div className="confirm-inline">
-              <span className="small">{t('Delete “{name}” and all its ideas?', { name: state.space.name })}</span>
+              <span className="small">{t(cloud ? 'Delete “{name}” and all its ideas for everyone in this workspace?' : 'Delete “{name}” and all its ideas?', { name: state.space.name })}</span>
               <div className="row"><button className="btn danger-btn" onClick={() => { dispatch({ type: 'DELETE_PROJECT', id: ws.current }); setConfirmDelete(false); navigate('/view'); close() }}>{t('Delete')}</button><button className="btn subtle" onClick={() => setConfirmDelete(false)}>{t('Cancel')}</button></div>
             </div>
           ) : (
@@ -153,8 +170,9 @@ function ProjectMenu({ onSettings, onNotice }) {
 
 function SettingsModal({ onClose }) {
   const t = useT()
-  const { state, dispatch } = useStore()
+  const { state, dispatch, cloud } = useStore()
   const [tab, setTab] = useState('general')
+  const [confirmReset, setConfirmReset] = useState(false)
   const [person, setPerson] = useState('')
   const [tplName, setTplName] = useState('')
   return (
@@ -174,14 +192,21 @@ function SettingsModal({ onClose }) {
             {state.example && (
               <>
                 <span className="field-label">{t('Example data')}</span>
-                <div><button className="btn subtle" onClick={() => { dispatch({ type: 'RESET_EXAMPLE' }); navigate('/view'); onClose() }}>{t('Reset example project')}</button></div>
+                {confirmReset ? (
+                  <div className="confirm-inline reset-confirm" role="alert">
+                    <span className="small">{t(cloud ? 'This replaces “{name}” with the original example for everyone in this workspace. Ideas, votes and comments added to it are lost. Export it first if you want a copy.' : 'This replaces “{name}” with the original example. Ideas, votes and comments added to it are lost.', { name: state.space.name })}</span>
+                    <div className="row"><button className="btn danger-btn" onClick={() => { dispatch({ type: 'RESET_EXAMPLE' }); navigate('/view'); onClose() }}>{t('Reset')}</button><button className="btn subtle" onClick={() => setConfirmReset(false)}>{t('Cancel')}</button></div>
+                  </div>
+                ) : (
+                  <div><button className="btn subtle" onClick={() => setConfirmReset(true)}>{t('Reset example project')}</button></div>
+                )}
               </>
             )}
           </div>
         )}
         {tab === 'team' && (
           <>
-            <p className="muted small">{t('Everything is stored in this browser. Pick who you are acting as to vote, comment and own ideas as that person.')}</p>
+            <p className="muted small">{t(cloud ? 'Everyone with the workspace link shares this team list. Pick who you are on this device to vote, comment and own ideas as that person.' : 'Everything is stored in this browser. Pick who you are acting as to vote, comment and own ideas as that person.')}</p>
             {state.users.map(u => (
               <label key={u.id} className="check-row team-row">
                 <input type="radio" name="me" checked={state.me === u.id} onChange={() => dispatch({ type: 'SET_ME', id: u.id })} />
@@ -335,8 +360,10 @@ function CreateIdea({ view, onClose }) {
 
 function PublishPop({ view }) {
   const t = useT()
-  const { ws, dispatch } = useStore()
-  const link = `${location.origin}${location.pathname}#/share/${view.id}?p=${ws.current}`
+  const { ws, dispatch, sync } = useStore()
+  const cloudLink = sync.mode === 'cloud' && sync.id && sync.status !== 'missing'
+  const base = cloudLink ? workspaceUrl(sync.id) : `${location.origin}${location.pathname}`
+  const link = `${base}#/share/${view.id}?p=${ws.current}`
   return (
     <div className="publish-pop">
       <div className="popover-title">{t('Publish this view')}</div>
@@ -351,14 +378,14 @@ function PublishPop({ view }) {
             <input readOnly aria-label={t('Link')} value={link} onFocus={e => e.target.select()} />
             <a className="btn subtle" href={`#/share/${view.id}?p=${ws.current}`}>{t('Open')}</a>
           </div>
-          <p className="muted small">{t('Data lives in this browser, so the link works on this device. Export the project to share it with others.')}</p>
+          <p className="muted small">{t(cloudLink ? 'Anyone with this link sees the view read-only, always up to date. It points into your workspace, so share it with people you trust.' : 'Data lives in this browser, so the link works on this device. Export the project to share it with others.')}</p>
         </>
       )}
     </div>
   )
 }
 
-function ViewPage({ view: savedView, mode, params, onMenu }) {
+function ViewPage({ view: savedView, mode, params, onMenu, onNotice }) {
   const t = useT()
   const { state, dispatch } = useStore()
   const readOnly = mode === 'share'
@@ -415,6 +442,7 @@ function ViewPage({ view: savedView, mode, params, onMenu }) {
             <a className="btn subtle" href={`#/view/${view.id}`}>{t('Open in editor')}</a>
           ) : (
             <>
+              <Cloud onNotice={onNotice} />
               {!view.archive && (
                 <Popover align="right"
                   trigger={({ toggle }) => <button className={`btn ${view.published ? 'published' : 'subtle'}`} onClick={toggle}><Icon name="globe" size={14} /> <span className="hide-mobile">{view.published ? t('Published') : t('Publish')}</span></button>}>
@@ -452,9 +480,71 @@ function ViewPage({ view: savedView, mode, params, onMenu }) {
   )
 }
 
+// Shown once per project to someone who opens a shared workspace: votes and comments need a name.
+function WhoAreYou() {
+  const t = useT()
+  const { state, dispatch } = useStore()
+  const [name, setName] = useState('')
+  const skip = () => dispatch({ type: 'SET_ME', id: state.me })
+  return (
+    <Modal title={t('Who are you?')} onClose={skip} className="who-modal">
+      <p className="muted">{t('“{project}” is shared. Pick your name so your votes and comments show as you. This device remembers it.', { project: state.space.name })}</p>
+      <div className="who-list">
+        {state.users.map(u => (
+          <button key={u.id} className="menu-item" onClick={() => dispatch({ type: 'SET_ME', id: u.id })}>
+            <Avatar user={u} size={24} /> <span className="grow ellipsis">{u.name}</span>
+          </button>
+        ))}
+      </div>
+      <form className="who-add" onSubmit={e => { e.preventDefault(); const n = name.trim(); if (!n) return; dispatch({ type: 'ADD_USER', name: n, me: true }); rememberName(n) }}>
+        <label className="field-label" htmlFor="who-name">{t('Not on the list? Add yourself')}</label>
+        <div className="row">
+          <input id="who-name" placeholder={t('Your name')} value={name} onChange={e => setName(e.target.value)} maxLength={60} />
+          <button className="btn primary" disabled={!name.trim()}>{t('Add me')}</button>
+        </div>
+      </form>
+      <div className="row end"><button type="button" className="btn subtle" onClick={skip}>{t('Not now')}</button></div>
+    </Modal>
+  )
+}
+
+// Full-page states while a cloud workspace is opening, or when its link leads nowhere.
+function CloudGate({ missing }) {
+  const t = useT()
+  const { ws, sync, newWorkspace, loaded } = useStore()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const other = sync.workspaces.find(w => w.id !== sync.id)
+  const run = fn => { setBusy(true); setError(''); fn().catch(() => { setBusy(false); setError(t('Couldn’t create a workspace right now. Check your connection and try again.')) }) }
+  // What this device holds for the missing workspace can become a new one (nothing is lost).
+  const saveCopy = () => run(async () => { const data = toCloud(ws); openWorkspace(await createWorkspace('discovery', 'dl', data, workspaceName(data))) })
+  if (!missing) {
+    return (
+      <div className="share-missing cloud-gate" role="status" aria-live="polite">
+        <span className={`gate-dot ${sync.status === 'offline' ? 'off' : ''}`} aria-hidden="true" />
+        <h2>{sync.status === 'offline' ? t('Waiting for a connection') : t('Opening the workspace…')}</h2>
+        {sync.status === 'offline' && <p className="muted">{t('Check your connection. It opens as soon as you are back online.')}</p>}
+      </div>
+    )
+  }
+  return (
+    <div className="share-missing cloud-gate" role="alert">
+      <Icon name="globe" size={32} />
+      <h2>{t('Workspace not found')}</h2>
+      <p className="muted">{t('The link may be mistyped, or the workspace was deleted. Your own work on this device is safe.')}</p>
+      <div className="row gate-actions">
+        {loaded && <button className="btn primary" disabled={busy} onClick={saveCopy}>{t('Save this device’s copy as a new workspace')}</button>}
+        {other && <button className="btn subtle" onClick={() => { forgetWorkspace('discovery', sync.id); openWorkspace(other.id) }}>{t('Open “{name}”', { name: other.name || t('my workspace') })}</button>}
+        {!loaded && <button className="btn primary" disabled={busy} onClick={() => run(newWorkspace)}>{t('Start a new workspace')}</button>}
+      </div>
+      {error && <p className="form-error">{error}</p>}
+    </div>
+  )
+}
+
 export default function App() {
   const t = useT()
-  const { state, ws, dispatch } = useStore()
+  const { state, ws, dispatch, sync, loaded } = useStore()
   const { mode, id, params } = useRoute()
   const [drawer, setDrawer] = useState(false)
   const [settings, setSettings] = useState(false)
@@ -469,6 +559,8 @@ export default function App() {
 
   const archiveView = { id: '__archive', archive: true, type: 'list', name: t('Archived ideas'), about: '', fields: ['status', 'insights', 'votes', 'owner'].filter(f => fieldById(state, f)), filters: [], sort: null }
   const view = mode === 'archive' ? archiveView : state.views.find(v => v.id === id) ?? (mode !== 'share' ? state.views[0] : null)
+
+  if (sync.status === 'missing' || !loaded) return <div className="app share"><CloudGate missing={sync.status === 'missing'} /></div>
 
   if (mode === 'share') {
     if (!view || !view.published || (wantProject && ws.current !== wantProject && ws.projects[wantProject])) {
@@ -492,14 +584,15 @@ export default function App() {
     <div className="app">
       <Sidebar activeId={view?.id} open={drawer} onClose={() => setDrawer(false)} onSettings={() => setSettings(true)} onNotice={setNotice} />
       <main className="main">
-        {view ? <ViewPage key={`${ws.current}:${view.id}`} view={view} mode="view" params={params} onMenu={() => setDrawer(true)} /> : (
+        {view ? <ViewPage key={`${ws.current}:${view.id}`} view={view} mode="view" params={params} onMenu={() => setDrawer(true)} onNotice={setNotice} /> : (
           <div className="empty">
-            <button className="icon-btn show-mobile" aria-label={t('Open menu')} onClick={() => setDrawer(true)}><Icon name="menu" /></button>
+            <div className="row"><button className="icon-btn show-mobile" aria-label={t('Open menu')} onClick={() => setDrawer(true)}><Icon name="menu" /></button><span className="spacer" /><Cloud onNotice={setNotice} /></div>
             {t('No views yet. Create one from the sidebar.')}
           </div>
         )}
       </main>
       {settings && <SettingsModal onClose={() => setSettings(false)} />}
+      {sync.mode === 'cloud' && !state.meChosen && !settings && <WhoAreYou key={ws.current} />}
       {notice && <div className="toast" role="status">{notice}</div>}
     </div>
   )

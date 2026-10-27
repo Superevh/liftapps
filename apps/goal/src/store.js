@@ -143,6 +143,15 @@ const INITS = {
   zh: { t1: ["吧台增加第二台磨豆机", "早上 7 点前预制冷萃"], t2: ["在第一屏显示运费"] },
 };
 
+// An empty organisation for a new workspace: this year and the quarters around today, one person (you).
+export function blank(lang = "en", nowDate = new Date()) {
+  const zh = lang === "zh";
+  const y = nowDate.getFullYear(), q = quarterOf(nowDate);
+  const timeframes = [makeYear(y), q === 1 ? makeQuarter(y - 1, 4) : makeQuarter(y, q - 1), makeQuarter(y, q), q === 4 ? makeQuarter(y + 1, 1) : makeQuarter(y, q + 1)];
+  const me = { id: uid(), name: zh ? "我" : "Me", role: "", deptId: null, teamId: null };
+  return { app: "goallift", version: VERSION, org: { name: zh ? "我的组织" : "My organisation" }, departments: [], teams: [], people: [me], timeframes, objectives: [], meId: me.id, createdAt: nowDate.toISOString() };
+}
+
 export function seed(lang = "en", nowDate = new Date()) {
   const L = NAMES[lang] ? lang : "en", N = NAMES[L];
   const now = nowDate.getTime();

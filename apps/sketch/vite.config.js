@@ -32,6 +32,8 @@ function local() {
 export default defineConfig({
   base: '/sketch/app/',
   plugins: [react(), local()],
+  // shared/cloud imports react and supabase-js; resolve them from this app's node_modules.
+  resolve: { dedupe: ['react', 'react-dom', '@supabase/supabase-js'] },
   build: { outDir: 'dist/sketch/app', emptyOutDir: true },
   server: { port: 5303, fs: { allow: ['../..'] } },
   preview: { port: 5303 },

@@ -1,4 +1,3 @@
-import React from 'react'
 import { createRoot } from 'react-dom/client'
 import '../../../shared/lift-shell.mjs'
 import '../../../shared/lift-theme.css'

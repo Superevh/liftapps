@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { getLang, onLang } from "../../../shared/lift-shell.mjs";
 import { makeT } from "./i18n.js";
-import { load, save, seed } from "./store.js";
+import { load, save, seed, blank } from "./store.js";
+import { useCloudSync, createWorkspace, openWorkspace } from "../../../shared/cloud/cloud.mjs";
+import { CloudMenu } from "../../../shared/cloud/CloudMenu.jsx";
 import { currentTimeframe, sortTimeframes, tfLabel, unitObjectives, avgProgress, pct } from "./logic.js";
 import { Ctx, useApp } from "./ctx.js";
 import { Icon } from "./ui.jsx";
@@ -17,6 +19,7 @@ const readRoute = () => { const h = location.hash.replace(/^#/, ""); return h.st
 
 export default function App() {
   const [lang, setLang] = useState(getLang());
+  const [hasLocal] = useState(() => !!load());
   const [data, setData] = useState(() => load() || seed(getLang()));
   const [route, setRoute] = useState(readRoute);
   const [panel, setPanel] = useState(null); // { kind: "objective", id } | { kind: "checkin", objId, krId }
@@ -33,6 +36,15 @@ export default function App() {
   }, []);
   useEffect(() => { if (!data.timeframes.some((x) => x.id === tf)) setTf(currentTimeframe(data.timeframes)?.id); }, [data.timeframes, tf]);
 
+  // "Me" belongs to this browser, not the shared workspace, so it's kept out of the cloud copy.
+  const shared = useMemo(() => { const { meId, ...rest } = data; return rest; }, [data]);
+  const fromCloud = useCallback((d) => setData((cur) => ({ ...d, meId: d.people?.some((p) => p.id === cur.meId) ? cur.meId : d.people?.[0]?.id ?? null })), []);
+  const sync = useCloudSync({ app: "goal", prefix: "gl", state: shared, setState: fromCloud, hasLocalData: hasLocal, nameOf: (d) => d.org?.name ?? "" });
+  const newWorkspace = useCallback(() => {
+    const { meId, ...fresh } = blank(lang);
+    createWorkspace("goal", "gl", fresh, fresh.org.name).then(openWorkspace, () => alert(lang === "zh" ? "暂时无法创建，请检查网络后再试。" : "Couldn’t create it right now. Check your connection and try again."));
+  }, [lang]);
+
   const t = useMemo(() => makeT(lang), [lang]);
   const update = useCallback((fn) => setData((d) => { const c = structuredClone(d); fn(c); return c; }), []);
   const replaceData = useCallback((d) => { setData(d); setPanel(null); setTf(currentTimeframe(d.timeframes)?.id); }, []);
@@ -41,7 +53,7 @@ export default function App() {
   const timeframes = useMemo(() => sortTimeframes(data.timeframes), [data.timeframes]);
 
   const ctx = {
-    data, update, replaceData, t, lang, tf, setTf, tfById, timeframes, route, go, setModal,
+    data, update, replaceData, t, lang, sync, tf, setTf, tfById, timeframes, route, go, setModal,
     openObjective: (id) => setPanel({ kind: "objective", id }),
     openCheckin: (objId, krId) => setPanel({ kind: "checkin", objId, krId }),
   };
@@ -77,7 +89,8 @@ export default function App() {
                 </select>
               </label>
             )}
-            {showCycle && <button className="btn primary" onClick={() => setModal({ kind: "objective", preset })} data-new-obj><Icon name="plus" size={14} />{t("newObjective")}</button>}
+            <CloudMenu sync={sync} app="goal" lang={lang} onNew={sync.mode === "cloud" ? newWorkspace : null} />
+            {showCycle && <button className="btn primary" onClick={() => setModal({ kind: "objective", preset })} data-new-obj aria-label={t("newObjective")}><Icon name="plus" size={14} /><span className="new-l">{t("newObjective")}</span></button>}
           </div>
           <main>{page}</main>
           <footer className="foot">GoalLift · Lift Apps by AIYun</footer>

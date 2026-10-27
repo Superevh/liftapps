@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { createBackend } from './backend.js'
 import { newBoardId, uid } from './store.jsx'
 
@@ -126,4 +126,16 @@ export function useLiveDoc(id, reduce) {
   const d = s.current
   const doc = d.status === 'ready' ? d.pending.reduce((x, a) => reduceRef.current(x, a), d.doc) : null
   return { status: d.status, doc, dispatch, error: d.error }
+}
+
+// Who has a document open right now: { ready, keys: Set }. `ready` stays false when the backend
+// has no presence, so callers can treat everyone as here. Nothing is written to the document.
+export function usePresence(id, key) {
+  const [state, setState] = useState({ ready: false, keys: new Set() })
+  useEffect(() => {
+    if (!backend?.presence || !id || !key) return
+    const h = backend.presence(id, key, keys => setState({ ready: true, keys: new Set(keys) }))
+    return () => h.close()
+  }, [id, key])
+  return state
 }

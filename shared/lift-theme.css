@@ -10,4 +10,8 @@
   --lift-body: Inter, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
   --lift-radius: 16px;
   --lift-btn: linear-gradient(180deg, #D8B07C, #CCA06A);
+  /* status colours (design spec v1.1): soft fills behind ink text, solid colours for marks and text */
+  --lift-success: #2F5D4A; --lift-success-soft: rgba(127,164,138,.2);
+  --lift-warning: #B7832F; --lift-warning-ink: #7A5418; --lift-warning-soft: rgba(183,131,47,.16);
+  --lift-danger: #94472F; --lift-danger-soft: #F6E4DA;
 }

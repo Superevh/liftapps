@@ -446,3 +446,30 @@ h1, h2, h3 { margin: 0; font-family: var(--lift-display); font-weight: 600; colo
   .opt-row { flex-wrap: wrap; }
   .popover { position: fixed; left: 16px !important; right: 16px !important; top: auto; width: auto; max-width: none; margin-top: 6px; }
 }
+
+/* ---------- cloud workspace (shared/cloud/CloudMenu.jsx + gates) ---------- */
+.view-header .lc-menu { flex: none; }
+.lc-pill { height: 32px; }
+.cloud-gate { flex: 1; }
+.cloud-gate h2 { font-size: 20px; }
+.cloud-gate p { max-width: 460px; margin: 0; }
+.gate-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--lift-warning, var(--gold)); animation: gate-pulse 1.2s ease-in-out infinite; }
+.gate-dot.off { background: var(--lift-danger, var(--danger)); animation: none; }
+@keyframes gate-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .gate-dot { animation: none; } }
+.gate-actions { flex-wrap: wrap; justify-content: center; }
+.reset-confirm { padding: 10px 12px; border-radius: 12px; background: var(--danger-soft); }
+.who-list { display: flex; flex-direction: column; gap: 2px; margin: 12px 0; max-height: 260px; overflow-y: auto; }
+.who-list .menu-item { padding: 8px 10px; font-size: 14px; }
+.who-add { border-top: 1px solid var(--line); padding-top: 12px; }
+.who-add .row { margin-top: 6px; }
+.who-add input { flex: 1; min-width: 0; }
+@media (max-width: 820px) {
+  /* The share menu opens as a sheet under the header, so it never runs off a phone screen. */
+  .view-header .lc-pop, .empty .lc-pop { position: fixed; left: 12px; right: 12px; top: calc(var(--bar-h) + 56px); width: auto; }
+  .view-header .lc-pill { gap: 6px; padding: 0 3px 0 10px; }
+  .view-header .lc-share { padding: 5px 9px; }
+  .view-header > .dropdown > .btn { padding: 0 9px; }
+}
+/* Phones: the idea count is also in the table header, so the header keeps to one line. */
+@media (max-width: 400px) { .view-header > .count-pill { display: none; } }

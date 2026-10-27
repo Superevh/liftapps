@@ -36,6 +36,17 @@ const STR = {
       spaceDrag: 'Space drag or Wheel', shiftClick: 'Shift click', altDrag: 'Alt drag', enter: 'Enter or double-click', arrows: 'Arrows', shiftDrag: 'Shift drag',
     },
     sample: { title: 'Sketch a flow', idea: 'Idea', decide: 'Try it?', ship: 'Ship it', draft: 'Draft', neat: 'Neat', note: 'Double-click a shape\nto edit its label' },
+    welcomeCloud: 'Drawings save to the cloud as you go. Share the link to draw together.',
+    drawings: 'Your drawings', drawingsBtn: 'Your drawings — rename, duplicate, switch', untitled: 'Untitled drawing', newDrawing: 'New drawing',
+    name: 'Drawing name', rename: 'Rename', duplicate2: 'Duplicate', remove: 'Remove from list', openNow: 'Open now', openIt: 'Open',
+    removeAsk: 'Remove from this list? The drawing itself isn’t deleted: anyone with its link can still open it.', removeYes: 'Remove',
+    copyOf: n => `${n} (copy)`, edited: 'Edited', editedNow: 'Edited just now', save2: 'Save', notSeen: 'Not opened on this device yet',
+    listNote: 'This list lives in this browser. Anyone with a drawing’s link can open and edit it.',
+    creating: 'Creating…', createFail: 'Couldn’t do that right now. Check your connection and try again.',
+    opening: 'Opening drawing…', openingOffline: 'Can’t reach this drawing right now. It opens as soon as you’re back online.',
+    missingTitle: 'Drawing not found', missingBody: 'This link doesn’t point to a drawing any more (it may have been deleted).',
+    missingLocal: 'What you see is the copy saved in this browser. Save it as a new drawing to keep working on it.',
+    saveAsNew: 'Save as a new drawing', tooBig: 'This drawing is close to the 1 MB cloud limit. Start a new drawing for more, so everything keeps syncing.',
   },
   zh: {
     tools: { hand: '抓手（平移）', selection: '选择', rectangle: '矩形', diamond: '菱形', ellipse: '椭圆', arrow: '箭头', line: '直线', freedraw: '画笔', text: '文字', eraser: '橡皮擦' },
@@ -68,6 +79,17 @@ const STR = {
       spaceDrag: 'Space 拖动 或 滚轮', shiftClick: 'Shift 点击', altDrag: 'Alt 拖动', enter: 'Enter 或 双击', arrows: '方向键', shiftDrag: 'Shift 拖动',
     },
     sample: { title: '画一个流程', idea: '想法', decide: '试试？', ship: '上线', draft: '草稿', neat: '工整', note: '双击图形\n即可编辑标签' },
+    welcomeCloud: '画板自动保存到云端。分享链接，就能一起画。',
+    drawings: '我的画板', drawingsBtn: '我的画板：重命名、创建副本、切换', untitled: '未命名画板', newDrawing: '新建画板',
+    name: '画板名称', rename: '重命名', duplicate2: '创建副本', remove: '从列表移除', openNow: '当前', openIt: '打开',
+    removeAsk: '从列表移除？画板本身不会被删除，拿到链接的人仍可打开。', removeYes: '移除',
+    copyOf: n => `${n}（副本）`, edited: '编辑于', editedNow: '刚刚编辑', save2: '保存', notSeen: '尚未在这台设备上打开',
+    listNote: '这个列表保存在当前浏览器。拿到画板链接的人都可以打开和编辑。',
+    creating: '创建中…', createFail: '暂时无法完成，请检查网络后再试。',
+    opening: '正在打开画板…', openingOffline: '暂时连不上这个画板，网络恢复后会自动打开。',
+    missingTitle: '找不到这个画板', missingBody: '这个链接已经没有对应的画板（可能已被删除）。',
+    missingLocal: '你看到的是保存在本浏览器里的副本。另存为新画板即可继续编辑。',
+    saveAsNew: '另存为新画板', tooBig: '这个画板接近 1 MB 的云端上限。内容再多请新建画板，以免无法同步。',
   },
 }
 
@@ -78,3 +100,19 @@ export function useLang() {
 }
 export const tFor = lang => STR[lang]
 export { getLang }
+
+// The shared cloud menu talks about "workspaces"; here they are drawings.
+export const CLOUD_WORDS = {
+  en: {
+    title: 'Drawing', share: 'Share this drawing', recent: 'Your drawings', newWs: 'New drawing', untitled: 'Untitled drawing',
+    missingNote: 'This link doesn’t point to a drawing (it may have been deleted). Your own work on this device is safe.',
+    savedNote: 'Saved to the cloud. Open this drawing on any device with its link.',
+    tooLarge: 'One change was too large to sync (for example a very long text). It is kept on this device only.',
+  },
+  zh: {
+    title: '画板', share: '分享这个画板', recent: '我的画板', newWs: '新建画板', untitled: '未命名画板',
+    missingNote: '这个链接没有对应的画板（可能已被删除）。你在这台设备上的内容不受影响。',
+    savedNote: '已保存到云端。在任何设备上用链接即可打开这个画板。',
+    tooLarge: '有一处改动太大（比如超长文字），无法同步，只保存在这台设备上。',
+  },
+}

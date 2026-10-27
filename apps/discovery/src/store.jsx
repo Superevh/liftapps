@@ -1,8 +1,13 @@
-import { createContext, useContext, useEffect, useReducer } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState } from 'react'
+import { useCloudSync, createWorkspace, openWorkspace, backend } from '../../../shared/cloud/cloud.mjs'
 import { parse, evaluate } from './formula.js'
 import { currentLang } from './lang.js'
+import { toCloud, fromCloud, projectToCloud, workspaceName } from './sync.js'
 
+// The original local-only workspace. Once it is in the cloud it is left untouched as a backup, and the
+// cloud workspace is cached under STORAGE_KEY@<workspace id> instead.
 const STORAGE_KEY = 'discoverylift-v1'
+const cacheKey = wsId => (wsId ? `${STORAGE_KEY}@${wsId}` : STORAGE_KEY)
 export const SCHEMA = 2
 
 export const uid = () => Math.random().toString(36).slice(2, 10)
@@ -94,7 +99,7 @@ export function seedProject(lang = currentLang()) {
   rows.forEach(([summary, desc, st, rm, ar, gl, reach, imp, eff, conf, owner, dates, votes], i) => {
     const key = `NA-${i + 1}`
     ideas[key] = {
-      key, summary, desc, archived: false,
+      id: uid(), key, summary, desc, archived: false,
       created: Date.now() - (40 - i) * DAY, updated: Date.now() - (12 - i) * 6 * 3600000,
       values: {
         status: status[st].id, roadmap: rm == null ? null : roadmap[rm].id, area: area[ar].id, goals: gl.map(g => goals[g].id),
@@ -145,7 +150,7 @@ export function seedProject(lang = currentLang()) {
   return {
     schema: SCHEMA, id: uid(), example: true,
     space: { key: 'NA', name: L('Field notes app', '外勤笔记应用') },
-    me: 'u1', users, fields, ideas, order, views, nextNum: rows.length + 1,
+    me: 'u1', meChosen: true, users, fields, ideas, order, views, nextNum: rows.length + 1,
     sections: ['prioritize', 'roadmap', 'discover'],
     templates: defaultTemplates(lang),
   }
@@ -160,14 +165,14 @@ export function defaultTemplates(lang = currentLang()) {
   ]
 }
 
-export function blankProject(name, lang = currentLang()) {
+export function blankProject(name, lang = currentLang(), you = '') {
   const L = (en, zh) => (lang === 'zh' ? zh : en)
   const key = (name.replace(/[^A-Za-z]/g, '').slice(0, 3) || 'ID').toUpperCase()
   const status = [opt(L('New', '新建'), 'stone'), opt(L('Discovery', '探索中'), 'gold'), opt(L('Ready to build', '待开发'), 'sand'), opt(L('Shipped', '已上线'), 'forest'), opt(L('Not doing', '不做'), 'clay')]
   const imp = L('Impact', '影响'), eff = L('Effort', '工作量')
   return {
-    schema: SCHEMA, id: uid(), space: { key, name }, me: 'u1',
-    users: [{ id: 'u1', name: L('You', '我'), color: USER_COLORS[0] }],
+    schema: SCHEMA, id: uid(), space: { key, name }, me: 'u1', meChosen: true,
+    users: [{ id: 'u1', name: you || L('You', '我'), color: USER_COLORS[0] }],
     fields: [
       { id: 'status', name: L('Status', '状态'), type: 'select', options: status, system: true },
       { id: 'roadmap', name: L('Roadmap', '路线图'), type: 'select', options: [opt(L('Now', '现在'), 'forest'), opt(L('Next', '下一步'), 'gold'), opt(L('Later', '以后'), 'stone')] },
@@ -213,10 +218,17 @@ export function normalizeProject(p) {
   out.nextNum = out.nextNum || out.order.length + 1
   if (!out.fields.some(f => f.id === 'status')) out.fields = [{ id: 'status', name: 'Status', type: 'select', options: [opt('New', 'stone')], system: true }, ...out.fields]
   for (const t of SYSTEM_TYPES) if (!out.fields.some(f => f.type === t)) out.fields = [...out.fields, { id: t, name: t[0].toUpperCase() + t.slice(1), type: t, system: true }]
+  // Every idea gets a unique id (the cloud copy is keyed by it), and an empty vote map per votes field so
+  // two people casting the first votes at the same time both count.
+  const voteFields = out.fields.filter(f => f.type === 'votes').map(f => f.id)
   const ideas = {}
+  const ids = new Set()
   for (const [k, i] of Object.entries(out.ideas)) {
     ideas[k] = { archived: false, desc: '', values: {}, insights: [], comments: [], delivery: [], created: Date.now(), updated: Date.now(), ...i, key: k }
+    if (!ideas[k].id || ids.has(ideas[k].id)) ideas[k].id = uid()
+    ids.add(ideas[k].id)
     ideas[k].insights = ideas[k].insights.map(x => ({ labels: [], impact: null, link: '', ...x }))
+    if (voteFields.some(f => !ideas[k].values[f])) ideas[k].values = { ...Object.fromEntries(voteFields.map(f => [f, {}])), ...ideas[k].values }
   }
   out.ideas = ideas
   out.order = out.order.filter(k => ideas[k])
@@ -226,20 +238,21 @@ export function normalizeProject(p) {
   return out
 }
 
-function load() {
+// The saved workspace under `key`, or null. Projects saved before "who am I" was tracked count as picked.
+function loadKey(key) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(key)
     if (raw) {
       const ws = JSON.parse(raw)
       if (ws && ws.projects && Object.keys(ws.projects).length) {
         const projects = {}
-        for (const [id, p] of Object.entries(ws.projects)) if (validProject(p)) projects[id] = normalizeProject({ ...p, id })
+        for (const [id, p] of Object.entries(ws.projects)) if (validProject(p)) projects[id] = normalizeProject({ meChosen: true, ...p, id })
         const ids = Object.keys(projects)
         if (ids.length) return { current: projects[ws.current] ? ws.current : ids[0], projects }
       }
     }
-  } catch { /* fall through to seed */ }
-  return emptyWorkspace()
+  } catch { /* fall through */ }
+  return null
 }
 
 const touch = idea => ({ ...idea, updated: Date.now() })
@@ -251,11 +264,14 @@ function projectReducer(s, a) {
   const setField = (id, fn) => ({ ...s, fields: s.fields.map(f => (f.id === id ? fn(f) : f)) })
   switch (a.type) {
     case 'CREATE_IDEA': {
-      const key = `${s.space.key}-${s.nextNum}`
+      let n = s.nextNum
+      while (s.ideas[`${s.space.key}-${n}`]) n++
+      const key = `${s.space.key}-${n}`
       const status = s.fields.find(f => f.id === 'status')?.options[0]?.id ?? null
-      const idea = { key, summary: a.summary, desc: a.desc ?? '', archived: false, created: Date.now(), updated: Date.now(),
-        values: { status, ...a.values }, insights: [], comments: [], delivery: [] }
-      return { ...s, nextNum: s.nextNum + 1, ideas: { ...s.ideas, [key]: idea }, order: [...s.order, key], lastCreated: key }
+      const votes = Object.fromEntries(s.fields.filter(f => f.type === 'votes').map(f => [f.id, {}]))
+      const idea = { id: uid(), key, summary: a.summary, desc: a.desc ?? '', archived: false, created: Date.now(), updated: Date.now(),
+        values: { ...votes, status, ...a.values }, insights: [], comments: [], delivery: [] }
+      return { ...s, nextNum: n + 1, ideas: { ...s.ideas, [key]: idea }, order: [...s.order, key], lastCreated: key }
     }
     case 'UPDATE_IDEA':
       return setIdea(a.key, i => ({ ...i, ...a.patch }))
@@ -334,8 +350,14 @@ function projectReducer(s, a) {
         ...(t === 'votes' ? { maxPerUser: a.maxPerUser ?? 3 } : {}),
         ...(t === 'formula' ? { formula: a.formula ?? { kind: 'rollup', inputs: [] } } : {}),
         ...(t === 'select' || t === 'multiselect' ? { options: (a.options ?? []).map((l, i) => opt(l, COLOR_KEYS[(i + 1) % COLOR_KEYS.length], 1)) } : {}) }
+      // An empty vote map on every idea, so first votes from two people merge.
+      let ideas = s.ideas
+      if (field.type === 'votes') {
+        ideas = {}
+        for (const [k, i] of Object.entries(s.ideas)) ideas[k] = { ...i, values: { ...i.values, [id]: {} } }
+      }
       return {
-        ...s,
+        ...s, ideas,
         fields: [...s.fields, field],
         views: a.viewId ? s.views.map(v => (v.id === a.viewId ? { ...v, fields: [...v.fields, id] } : v)) : s.views,
         lastField: id,
@@ -392,9 +414,12 @@ function projectReducer(s, a) {
       return { ...next, ideas }
     }
     case 'SET_ME':
-      return { ...s, me: a.id }
-    case 'ADD_USER':
-      return { ...s, users: [...s.users, { id: uid(), name: a.name, color: USER_COLORS[s.users.length % USER_COLORS.length] }] }
+      return s.users.some(u => u.id === a.id) ? { ...s, me: a.id, meChosen: true } : s
+    case 'ADD_USER': {
+      const id = uid()
+      const users = [...s.users, { id, name: a.name, color: USER_COLORS[s.users.length % USER_COLORS.length] }]
+      return a.me ? { ...s, users, me: id, meChosen: true } : { ...s, users }
+    }
     case 'UPDATE_SPACE':
       return { ...s, space: { ...s.space, ...a.patch } }
     case 'ADD_TEMPLATE':
@@ -413,11 +438,11 @@ function reducer(ws, a) {
     case 'SWITCH_PROJECT':
       return ws.projects[a.id] ? { ...ws, current: a.id } : ws
     case 'NEW_PROJECT': {
-      const p = a.example ? seedProject() : blankProject(a.name)
+      const p = a.example ? seedProject() : blankProject(a.name, currentLang(), a.you)
       return { current: p.id, projects: { ...ws.projects, [p.id]: p } }
     }
     case 'IMPORT_PROJECT': {
-      const p = normalizeProject({ ...a.project, id: uid() })
+      const p = normalizeProject({ ...a.project, id: uid(), meChosen: true })
       const names = Object.values(ws.projects).map(x => x.space.name)
       for (let n = 2; names.includes(p.space.name); n++) p.space = { ...p.space, name: `${a.project.space.name} (${n})` }
       return { current: p.id, projects: { ...ws.projects, [p.id]: p } }
@@ -429,9 +454,12 @@ function reducer(ws, a) {
       return { current: projects[ws.current] ? ws.current : Object.keys(projects)[0], projects }
     }
     case 'RESET_EXAMPLE': {
-      const p = { ...seedProject(), id: ws.current }
+      const p = { ...seedProject(), id: ws.current, me: ws.projects[ws.current].me, meChosen: ws.projects[ws.current].meChosen }
+      if (!p.users.some(u => u.id === p.me)) p.me = p.users[0].id
       return { ...ws, projects: { ...ws.projects, [ws.current]: p } }
     }
+    case 'FROM_CLOUD':
+      return fromCloud(ws, a.data, a.chosen) ?? emptyWorkspace()
     default: {
       const cur = ws.projects[ws.current]
       const next = projectReducer(cur, a)
@@ -444,20 +472,67 @@ const Ctx = createContext(null)
 
 const strip = p => { const { lastView, lastField, lastCreated, ...rest } = p; return rest }
 
+const readJson = (store, key) => { try { return JSON.parse(store.getItem(key)) } catch { return null } }
+// A workspace this browser just created: its creator doesn't need to be asked who they are.
+const CHOSEN_HINT = 'discoverylift-created'
+
+// Where this page load starts (read once): the workspace in the link and the one this browser used last.
+function bootInfo() {
+  const fromUrl = backend ? new URLSearchParams(location.search).get('w') : null
+  const stored = backend ? readJson(localStorage, 'lift-cloud-discovery') : null
+  const target = fromUrl || stored
+  const legacy = loadKey(STORAGE_KEY)
+  // Opening another workspace (a shared link, or switching): show it only once the cloud copy is here,
+  // so nothing is edited on top of the wrong data.
+  const arriving = !!fromUrl && fromUrl !== stored
+  const cached = target && !arriving ? loadKey(cacheKey(target)) : null
+  return {
+    arriving,
+    hasLocal: !!legacy,
+    // While arriving, the screen holds this browser's own local data: that is what gets uploaded if
+    // this browser has never saved to the cloud.
+    ws: cached ?? legacy ?? emptyWorkspace(),
+    chosen: (() => { try { return sessionStorage.getItem(CHOSEN_HINT) } catch { return null } })(),
+  }
+}
+
 export function StoreProvider({ children }) {
-  const [ws, dispatch] = useReducer(reducer, undefined, load)
+  const [boot] = useState(bootInfo)
+  const [ws, dispatch] = useReducer(reducer, boot.ws)
+  const [loaded, setLoaded] = useState(!boot.arriving)
+
+  const shared = useMemo(() => toCloud(ws), [ws.projects]) // eslint-disable-line react-hooks/exhaustive-deps
+  const onCloud = useCallback(data => { dispatch({ type: 'FROM_CLOUD', data, chosen: boot.chosen }); setLoaded(true) }, [boot.chosen])
+  const sync = useCloudSync({ app: 'discovery', prefix: 'dl', state: shared, setState: onCloud, hasLocalData: boot.hasLocal, nameOf: workspaceName })
+
+  // Cache on this device: the cloud workspace under its own key; the local-only workspace (no cloud, or
+  // not uploaded yet) under the original key. Nothing is written while someone else's workspace is loading.
   useEffect(() => {
+    if (!loaded) return
     try {
       const projects = {}
       for (const [id, p] of Object.entries(ws.projects)) projects[id] = strip(p)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ current: ws.current, projects }))
+      localStorage.setItem(cacheKey(sync.id), JSON.stringify({ current: ws.current, projects }))
     } catch { /* storage full or blocked */ }
-  }, [ws])
-  return <Ctx.Provider value={{ state: ws.projects[ws.current], ws, dispatch }}>{children}</Ctx.Provider>
+  }, [ws, loaded, sync.id])
+
+  // A fresh workspace with one blank project, then open it (the page reloads into it).
+  const newWorkspace = useCallback(async () => {
+    const zh = currentLang() === 'zh'
+    let you = ''
+    try { you = readJson(localStorage, 'lift-identity')?.name ?? '' } catch { /* none */ }
+    const p = blankProject(zh ? '我的产品' : 'My product', currentLang(), you)
+    const id = await createWorkspace('discovery', 'dl', { projects: { [p.id]: projectToCloud(p) } }, p.space.name)
+    try { sessionStorage.setItem(CHOSEN_HINT, p.id) } catch { /* private mode */ }
+    openWorkspace(id)
+  }, [])
+
+  const value = { state: ws.projects[ws.current], ws, dispatch, sync, loaded, newWorkspace, cloud: sync.mode === 'cloud' }
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 
 export const useStore = () => useContext(Ctx)
-export const exportable = p => ({ app: 'discoverylift', ...strip(p) })
+export const exportable = p => { const { meChosen, ...rest } = strip(p); return { app: 'discoverylift', ...rest } }
 
 export const fieldById = (state, id) => state.fields.find(f => f.id === id)
 export const userById = (state, id) => state.users.find(u => u.id === id)

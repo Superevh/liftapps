@@ -29,6 +29,9 @@ const P = {
   close: 'M6 6l12 12M18 6L6 18',
   minus: 'M5 12h14',
   plus: 'M12 5v14M5 12h14',
+  pencil: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
+  drawings: 'M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z',
+  chevron: 'M7 10l5 5 5-5',
 }
 
 export default function Icon({ name, size = 18, strokeWidth = 1.8 }) {

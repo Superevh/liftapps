@@ -1,13 +1,20 @@
-import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import {
   createElement, bounds, commonBounds, normalize, hitTest, measureText, scaleElement, demoScene, uid, newSeed,
   isLinear, isContainer, STROKE_COLORS, BG_COLORS, CANVAS_BGS, DEFAULT_STYLE, DEFAULT_BG, FONT_SIZES, FONT, LINE_HEIGHT,
 } from './scene.js'
 import { renderScene, handleRects, exportCanvas, exportSvg } from './render.js'
 import Icon, { Glyph } from './icons.jsx'
-import { useLang, tFor, getLang, MOD } from './i18n.js'
+import { useLang, tFor, getLang, MOD, CLOUD_WORDS } from './i18n.js'
+import { backend, useCloudSync, createWorkspace, openWorkspace, forgetWorkspace } from '../../../shared/cloud/cloud.mjs'
+import { diff, apply } from '../../../shared/cloud/patch.mjs'
+import { CloudMenu } from '../../../shared/cloud/CloudMenu.jsx'
+import {
+  APP, PREFIX, LEGACY_KEY, MIGRATED_KEY, CURRENT_KEY, readCache, writeCache, pruneCaches, readLegacy, saveMeta, metaOf, forgetMeta, makeThumb,
+  blankDrawing, tidy, fitForSync, uniqueIds,
+} from './drawingStore.js'
+import { DrawingsPanel, DrawingGate } from './Drawings.jsx'
 
-const STORAGE_KEY = 'sketchlift-v1'
 const TOOLS = [
   { id: 'hand', key: 'H' },
   { id: 'selection', key: '1', alt: 'V' },
@@ -24,18 +31,36 @@ const KEY_TO_TOOL = { h: 'hand', v: 'selection', 1: 'selection', r: 'rectangle',
 const DRAW_TOOLS = ['rectangle', 'diamond', 'ellipse', 'arrow', 'line', 'freedraw', 'text']
 const CURSORS = { nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' }
 const BAR_H = 52
+// Keeps one text within a single synced change (the cloud takes ≤ 64 KB per change, CJK is 3 bytes a character).
+const MAX_TEXT = 15000
 
+// What to show first. Without a backend: the one local scene, as before. With one: the drawing in the
+// ?w= link (or the one this browser had open), from this browser's copy of it when there is one.
+//   ready     false while a drawing this browser has never seen loads (the canvas waits for it)
+//   uploading true on the first cloud visit: useCloudSync uploads the scene on screen as the first drawing
+//   migrate   the pre-cloud local scene, when it still needs its own cloud copy (arrived by someone's link)
 function loadInitial() {
-  const base = { elements: [], bg: DEFAULT_BG, zoom: 1, scrollX: 0, scrollY: 0 }
-  if (location.hash === '#demo') return { ...base, elements: demoScene(tFor(getLang()).sample) }
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const data = JSON.parse(raw)
-      if (Array.isArray(data.elements)) return { ...base, ...data }
-    }
-  } catch { /* corrupted or blocked storage */ }
-  return base
+  const base = { elements: [], bg: DEFAULT_BG, name: '', zoom: 1, scrollX: 0, scrollY: 0, ready: true }
+  const demo = location.hash === '#demo' ? { elements: demoScene(tFor(getLang()).sample) } : null
+  const legacy = readLegacy()
+  if (!backend) return { ...base, ...(demo ?? legacy) }
+  const fromUrl = new URLSearchParams(location.search).get('w')
+  let stored = null
+  try { stored = JSON.parse(localStorage.getItem(CURRENT_KEY)) } catch { /* blocked storage */ }
+  // A drawing this browser has a copy of opens straight from it (instantly, and offline too).
+  if (fromUrl && fromUrl !== stored && readCache(fromUrl)) {
+    try { localStorage.setItem(CURRENT_KEY, JSON.stringify(fromUrl)) } catch { /* blocked storage */ }
+    stored = fromUrl
+  }
+  const id = fromUrl || stored
+  if (!id) {
+    // useCloudSync uploads what's on screen until it succeeds, so the old scene is migrated by that.
+    try { if (legacy) localStorage.setItem(MIGRATED_KEY, 'first') } catch { /* blocked storage */ }
+    return { ...base, ...(demo ?? legacy), uploading: true }
+  }
+  let migrate = null
+  try { if (legacy?.elements.length && !localStorage.getItem(MIGRATED_KEY)) migrate = legacy } catch { /* blocked storage */ }
+  return { ...base, ...readCache(id), ready: id === stored, migrate }
 }
 const stamp = () => new Date().toISOString().slice(0, 10)
 
@@ -48,17 +73,18 @@ function download(blob, name) {
 }
 
 export default function App() {
-  const [, t] = useLang()
+  const [lang, t] = useLang()
   const init = useRef(null)
   if (!init.current) init.current = loadInitial()
   const S = useRef({
-    elements: init.current.elements, selectedIds: new Set(), tool: 'selection', locked: false,
+    elements: uniqueIds(Array.isArray(init.current.elements) ? init.current.elements : []), selectedIds: new Set(), tool: 'selection', locked: false,
     zoom: init.current.zoom, scrollX: init.current.scrollX, scrollY: init.current.scrollY,
-    bg: init.current.bg, style: { ...DEFAULT_STYLE },
+    bg: init.current.bg || DEFAULT_BG, name: init.current.name || '', editedAt: null, style: { ...DEFAULT_STYLE },
     past: [], future: [], editing: null, marquee: null, erasing: null, interaction: null,
     spaceDown: false, clipboard: null, pointer: { x: 0, y: 0 },
   }).current
   const [, force] = useReducer(x => x + 1, 0)
+  if (import.meta.env.DEV) Object.assign(window, { __sketch: S, __sketchBackend: backend })
   const canvasRef = useRef(null)
   const appRef = useRef(null)
   const fileRef = useRef(null)
@@ -66,6 +92,93 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [dialog, setDialog] = useState(null)
   const [cursor, setCursor] = useState('default')
+  const [loaded, setLoaded] = useState(init.current.ready)
+  const [tooBig, setTooBig] = useState(false)
+
+  // ---------- cloud ----------
+  // The synced part of the drawing: elements, canvas colour and name (zoom, scroll, selection and tool stay
+  // in this browser). During a gesture it keeps the pre-gesture version, so a stroke or drag is sent once,
+  // when it's finished, and a remote update can't pull the shape out from under the pointer.
+  const sharedRef = useRef(null)
+  if (!sharedRef.current) sharedRef.current = { elements: S.elements, bg: S.bg, name: S.name }
+  {
+    const c = sharedRef.current
+    if (!S.interaction && (c.elements !== S.elements || c.bg !== S.bg || c.name !== S.name)) {
+      sharedRef.current = { elements: S.elements, bg: S.bg, name: S.name }
+      S.editedAt = Date.now()
+    }
+  }
+  // Someone else's changes (merged by useCloudSync under our unsent ones).
+  const fromCloud = useCallback(next => {
+    const prev = sharedRef.current
+    if (!Array.isArray(next.elements)) next = { ...next, elements: [] }
+    // Edits made here that useCloudSync hasn't been handed yet (a gesture in progress) are replayed on top.
+    const mine = diff(prev.elements, S.elements)
+    const theirs = diff(prev.elements, next.elements)
+    if (theirs.length) {
+      // Undo/redo revert only this person's edits: other people's changes are folded into the history,
+      // so undo never brings back a shape someone else deleted or removes one they added.
+      S.past = S.past.map(p => apply(p, theirs))
+      S.future = S.future.map(p => apply(p, theirs))
+      S.editedAt = Date.now()
+    }
+    S.elements = mine.length ? apply(next.elements, mine) : next.elements
+    if (S.bg === prev.bg) S.bg = next.bg || DEFAULT_BG
+    if (S.name === prev.name) S.name = next.name ?? ''
+    sharedRef.current = next
+    const ids = new Set(S.elements.map(e => e.id))
+    S.selectedIds = new Set([...S.selectedIds].filter(id => ids.has(id)))
+    if (S.editing && !ids.has(S.editing.id)) S.editing = null
+    force()
+  }, [S])
+  const sync = useCloudSync({ app: APP, prefix: PREFIX, state: sharedRef.current, setState: fromCloud, hasLocalData: false, nameOf: d => d.name ?? '' })
+  const cloud = sync.mode === 'cloud'
+  const blocked = !loaded || sync.status === 'missing'
+
+  // A drawing this browser hasn't seen opens once its cloud copy is here.
+  useEffect(() => {
+    if (loaded || (sync.status !== 'synced' && sync.status !== 'saving')) return
+    setLoaded(true)
+    if (S.elements.length) zoomToFit(S.elements, 1)
+  }, [sync.status]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Arrived by someone's link with a pre-cloud local scene: it becomes a drawing of its own (never lost).
+  useEffect(() => {
+    const legacy = init.current.migrate
+    if (!legacy) return
+    const data = { elements: uniqueIds(legacy.elements), bg: legacy.bg || DEFAULT_BG, name: '' }
+    createWorkspace(APP, PREFIX, data, '').then(id => {
+      try { localStorage.setItem(MIGRATED_KEY, id) } catch { /* blocked storage */ }
+      writeCache(id, JSON.stringify({ ...legacy, ...data }))
+      saveMeta(id, { edited: Date.now(), thumb: makeThumb(data.elements, data.bg) })
+    }, () => { /* offline or too large: it stays in this browser and is tried again next time */ })
+  }, [])
+
+  useEffect(() => { if (sync.id) pruneCaches(sync.id) }, [sync.id])
+  // A dead link doesn't belong in the drawings list.
+  useEffect(() => { if (sync.status === 'missing') { forgetWorkspace(APP, sync.id); if (!loaded) forgetMeta(sync.id) } }, [sync.status]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { document.title = cloud && S.name ? `${S.name} · SketchLift` : 'SketchLift · Lift Apps' })
+
+  const newDrawing = async () => {
+    const blank = blankDrawing(DEFAULT_BG)
+    const id = await createWorkspace(APP, PREFIX, blank, '')
+    writeCache(id, JSON.stringify({ ...blank, zoom: 1, scrollX: 0, scrollY: 0 }))
+    saveMeta(id, { edited: Date.now() })
+    openWorkspace(id)
+  }
+  const failed = () => setDialog({ type: 'error', message: t.createFail })
+  const saveAsNew = () => {
+    const data = { elements: S.elements, bg: S.bg, name: S.name }
+    createWorkspace(APP, PREFIX, data, S.name).then(id => {
+      writeCache(id, JSON.stringify({ ...data, zoom: S.zoom, scrollX: S.scrollX, scrollY: S.scrollY }))
+      saveMeta(id, { edited: Date.now(), thumb: makeThumb(S.elements, S.bg) })
+      openWorkspace(id)
+    }, failed)
+  }
+  const openDrawings = () => {
+    setMenuOpen(false)
+    setDialog({ type: 'drawings', thumb: loaded && sync.id ? makeThumb(S.elements, S.bg) : metaOf(sync.id).thumb })
+  }
 
   // ---------- scene helpers ----------
   const snapshot = () => { S.past.push(S.elements); if (S.past.length > 100) S.past.shift(); S.future = [] }
@@ -94,10 +207,10 @@ export default function App() {
     S.scrollX = cx / nz - w.x; S.scrollY = cy / nz - w.y; S.zoom = nz
     force()
   }
-  const zoomToFit = (els = S.elements) => {
+  const zoomToFit = (els = S.elements, max = 2) => {
     const b = commonBounds(els)
     if (!b) return
-    const z = Math.min(2, Math.max(0.1, Math.min((size.w - 160) / (b.x2 - b.x1 || 1), (size.h - 200) / (b.y2 - b.y1 || 1))))
+    const z = Math.min(max, Math.max(0.1, Math.min((size.w - 160) / (b.x2 - b.x1 || 1), (size.h - 200) / (b.y2 - b.y1 || 1))))
     S.zoom = z
     S.scrollX = size.w / 2 / z - (b.x1 + b.x2) / 2
     S.scrollY = size.h / 2 / z - (b.y1 + b.y2) / 2
@@ -310,9 +423,15 @@ export default function App() {
       if (hit) S.erasing.add(hit.id)
     } else if (it.type === 'create') {
       const el = S.elements.find(x => x.id === it.id)
+      if (!el) { S.interaction = null; return force() }
       let dx = w.x - it.start.x, dy = w.y - it.start.y
       let next
-      if (el.type === 'freedraw') next = { ...el, points: [...el.points, [w.x - el.x, w.y - el.y]] }
+      if (el.type === 'freedraw') {
+        // Points closer than a screen pixel add nothing visible, only size.
+        const last = el.points[el.points.length - 1]
+        if (Math.hypot(w.x - el.x - last[0], w.y - el.y - last[1]) * S.zoom < 1) return
+        next = { ...el, points: [...el.points, [w.x - el.x, w.y - el.y]] }
+      }
       else if (isLinear(el)) {
         if (e.shiftKey) {
           const a = Math.round(Math.atan2(dy, dx) / (Math.PI / 12)) * (Math.PI / 12), len = Math.hypot(dx, dy)
@@ -334,17 +453,20 @@ export default function App() {
     if (!it) return
     if (it.type === 'pan') setCursor(S.tool === 'hand' || S.spaceDown ? 'grab' : 'default')
     else if (it.type === 'marquee') S.marquee = null
-    else if (it.type === 'resize') setElements(S.elements.map(el => S.selectedIds.has(el.id) ? normalize(el) : el))
+    else if (it.type === 'resize') setElements(S.elements.map(el => S.selectedIds.has(el.id) ? tidy(normalize(el)) : el))
+    else if (it.type === 'move' && it.moved) setElements(S.elements.map(el => S.selectedIds.has(el.id) ? tidy(el) : el))
     else if (it.type === 'erase') {
       if (S.erasing.size) { snapshot(); setElements(S.elements.filter(el => !S.erasing.has(el.id))) }
       S.erasing = null
-    } else if (it.type === 'create') {
-      const el = normalize(S.elements.find(x => x.id === it.id))
+    } else if (it.type === 'create' && S.elements.some(x => x.id === it.id)) {
+      const el = tidy(normalize(S.elements.find(x => x.id === it.id)))
       const b = bounds(el)
       const tiny = el.type === 'freedraw' ? false : (b.x2 - b.x1) < 3 && (b.y2 - b.y1) < 3
       if (tiny) { setElements(S.elements.filter(x => x.id !== it.id)); S.past.pop() }
       else {
-        setElements(S.elements.map(x => x.id === it.id ? el : x))
+        // A very long stroke is split so each piece fits in one synced change.
+        const parts = fitForSync(el)
+        setElements(S.elements.flatMap(x => x.id === it.id ? parts : x))
         if (el.type !== 'freedraw') select([el.id])
         if (!S.locked && el.type !== 'freedraw') S.tool = 'selection'
       }
@@ -386,11 +508,11 @@ export default function App() {
       const data = JSON.parse(await file.text())
       if (!Array.isArray(data.elements)) throw new Error('No elements')
       snapshot()
-      setElements(data.elements.filter(e => !e.isDeleted).map(e => ({
+      setElements(uniqueIds(data.elements.filter(e => !e.isDeleted).map(e => ({
         ...DEFAULT_STYLE, ...e, w: e.w ?? e.width ?? 0, h: e.h ?? e.height ?? 0, seed: e.seed ?? newSeed(),
         roundness: typeof e.roundness === 'string' ? e.roundness : e.roundness ? 'round' : 'sharp',
         label: e.label ?? '', text: e.text ?? '', fontSize: e.fontSize ?? 20,
-      })))
+      }))).map(tidy).flatMap(fitForSync))
       if (data.appState?.viewBackgroundColor) S.bg = data.appState.viewBackgroundColor
       select([])
       zoomToFit()
@@ -403,6 +525,7 @@ export default function App() {
   // ---------- keyboard ----------
   useEffect(() => {
     const down = e => {
+      if (blocked) return
       const tag = e.target.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       const mod = e.metaKey || e.ctrlKey
@@ -465,24 +588,55 @@ export default function App() {
   })
 
   // ---------- render + persist ----------
+  // Redraw only when something drawn changed (sync status updates and cursor changes re-render the UI too).
+  const drawn = useRef(null)
   useLayoutEffect(() => {
     const c = canvasRef.current
     const dpr = window.devicePixelRatio || 1
+    const key = [S.elements, size.w, size.h, S.zoom, S.scrollX, S.scrollY, S.bg, S.editing ? null : S.selectedIds, S.marquee, S.editing?.id, S.erasing, S.erasing?.size, dpr]
+    if (drawn.current && key.every((v, i) => v === drawn.current[i])) return
+    drawn.current = key
     if (c.width !== size.w * dpr || c.height !== size.h * dpr) { c.width = size.w * dpr; c.height = size.h * dpr }
     renderScene(c.getContext('2d'), {
       elements: S.elements, width: size.w, height: size.h, zoom: S.zoom, scrollX: S.scrollX, scrollY: S.scrollY,
       bg: S.bg, selectedIds: S.editing ? new Set() : S.selectedIds, marquee: S.marquee, editingId: S.editing?.id, erasing: S.erasing, dpr,
     })
   })
+  // This browser's copy: the drawing with its own zoom/scroll (cloud), or the single local scene (no cloud,
+  // or the first visit while that scene is being uploaded).
+  const persisted = useRef(null)
+  const persist = useRef(null)
+  persist.current = () => {
+    if (!loaded || S.interaction) return
+    const v = [S.elements, S.bg, S.name, S.zoom, S.scrollX, S.scrollY, sync.id]
+    if (persisted.current && v.every((x, i) => x === persisted.current[i])) return
+    persisted.current = v
+    const json = JSON.stringify({ elements: S.elements, bg: S.bg, name: S.name, zoom: S.zoom, scrollX: S.scrollX, scrollY: S.scrollY })
+    if (sync.id) writeCache(sync.id, json)
+    else try { localStorage.setItem(LEGACY_KEY, json) } catch { /* storage full or blocked */ }
+    const big = cloud && json.length > 850000
+    if (big !== tooBig) setTooBig(big)
+  }
   useEffect(() => {
-    if (S.interaction) return
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ elements: S.elements, bg: S.bg, zoom: S.zoom, scrollX: S.scrollX, scrollY: S.scrollY }))
-      } catch { /* storage full or blocked */ }
-    }, 300)
+    const t = setTimeout(() => persist.current(), 300)
     return () => clearTimeout(t)
   })
+  // Thumbnail and "last edited" for the drawings list.
+  const thumbFor = useRef(null)
+  thumbFor.current = () => {
+    if (!sync.id || !loaded) return
+    const edited = S.editedAt ?? metaOf(sync.id).edited ?? Date.now()
+    saveMeta(sync.id, { thumb: makeThumb(S.elements, S.bg), edited })
+  }
+  useEffect(() => {
+    const t = setTimeout(() => thumbFor.current(), 1500)
+    return () => clearTimeout(t)
+  }, [sharedRef.current, sync.id, loaded]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const out = () => { persist.current(); thumbFor.current() }
+    window.addEventListener('pagehide', out)
+    return () => window.removeEventListener('pagehide', out)
+  }, [])
 
   // ---------- derived UI state ----------
   const sel = selected()
@@ -508,8 +662,18 @@ export default function App() {
       {/* top-left menu */}
       <div className="island top-left">
         <button className={`ui-btn ${menuOpen ? 'on' : ''}`} aria-label={t.menu} title={t.menu} aria-expanded={menuOpen} onClick={() => setMenuOpen(o => !o)}><Icon name="menu" /></button>
+        {cloud && (
+          <button className="title-btn" aria-label={`${S.name || t.untitled} — ${t.drawingsBtn}`} title={t.drawingsBtn} onClick={openDrawings}>
+            <Icon name="drawings" size={16} /><span>{S.name || t.untitled}</span><Icon name="chevron" size={14} />
+          </button>
+        )}
         {menuOpen && (
           <div className="menu" role="menu">
+            {cloud && <>
+              <MenuItem icon="drawings" label={t.drawings} onClick={openDrawings} />
+              <MenuItem icon="plus" label={t.newDrawing} onClick={() => { setMenuOpen(false); newDrawing().catch(failed) }} />
+              <hr />
+            </>}
             <MenuItem icon="open" label={t.open} kbd={`${MOD}+O`} onClick={() => { setMenuOpen(false); fileRef.current?.click() }} />
             <MenuItem icon="save" label={t.save} kbd={`${MOD}+S`} onClick={() => { setMenuOpen(false); saveFile() }} />
             <MenuItem icon="image" label={t.exportImg} kbd={`${MOD}+Shift+E`} onClick={() => { setMenuOpen(false); setDialog({ type: 'export' }) }} />
@@ -609,7 +773,7 @@ export default function App() {
       )}
 
       {/* welcome screen */}
-      {empty && S.tool === 'selection' && !S.editing && (
+      {empty && S.tool === 'selection' && !S.editing && !blocked && (
         <div className="welcome">
           <div className="hint hint-menu"><svg width="40" height="50" viewBox="0 0 40 50"><path d="M30 46C10 42 6 24 10 6M4 14l6-9 6 8" /></svg><span>{t.hintMenu}</span></div>
           <div className="hint hint-tools"><span>{t.hintTools}</span><svg width="50" height="60" viewBox="0 0 50 60"><path d="M6 54c26 2 38-18 34-48M32 14l8-9 6 10" /></svg></div>
@@ -617,7 +781,7 @@ export default function App() {
           <div className="welcome-center">
             <div className="welcome-logo">Sketch<i>Lift</i></div>
             <p className="welcome-line">{t.welcomeLine}</p>
-            <p className="welcome-note">{t.welcomeNote}</p>
+            <p className="welcome-note">{cloud ? t.welcomeCloud : t.welcomeNote}</p>
             <div className="welcome-items">
               <button onClick={() => fileRef.current?.click()}><Icon name="open" size={16} /> {t.open} <kbd>{MOD}+O</kbd></button>
               <button onClick={() => setDialog({ type: 'help' })}><Icon name="help" size={16} /> {t.help} <kbd>?</kbd></button>
@@ -644,6 +808,17 @@ export default function App() {
       <input ref={fileRef} type="file" accept=".json,application/json" hidden
         onChange={e => { const f = e.target.files?.[0]; if (f) openFile(f); e.target.value = '' }} />
 
+      <div className="top-right">
+        <CloudMenu sync={sync} app={APP} lang={lang} words={CLOUD_WORDS} onNew={cloud ? () => newDrawing().catch(failed) : null} />
+      </div>
+      {cloud && (tooBig || sync.error === 'too large') && <div className="island size-warn" role="status">{t.tooBig}</div>}
+      {blocked && <DrawingGate t={t} status={sync.status} onDrawings={openDrawings} onSaveAsNew={loaded && S.elements.length ? saveAsNew : null} onNew={() => newDrawing().catch(failed)} />}
+
+      {dialog?.type === 'drawings' && (
+        <DrawingsPanel t={t} lang={lang} currentId={sync.id} currentName={S.name} currentThumb={dialog.thumb}
+          currentData={() => ({ elements: S.elements, bg: S.bg })} onRenameCurrent={name => { S.name = name; force() }}
+          onNew={newDrawing} onClose={() => setDialog(null)} />
+      )}
       {dialog?.type === 'help' && <HelpDialog t={t} onClose={() => setDialog(null)} />}
       {dialog?.type === 'export' && <ExportDialog t={t} all={S.elements} selection={sel} bg={S.bg} onClose={() => setDialog(null)} />}
       {dialog?.type === 'reset' && (
@@ -677,7 +852,7 @@ function TextEditor({ el, field, S, onChange, onDone }) {
     style = { left: (el.x + S.scrollX) * z, top: (el.y + S.scrollY) * z + fs * 0.1, width: Math.max(el.w * z, 20) + fs, height: Math.max(el.h * z, fs * LINE_HEIGHT), textAlign: 'left' }
   }
   return (
-    <textarea ref={ref} className="text-editor" value={value} spellCheck={false}
+    <textarea ref={ref} className="text-editor" value={value} spellCheck={false} maxLength={MAX_TEXT}
       style={{ ...style, fontSize: fs, lineHeight: LINE_HEIGHT, fontFamily: FONT, color: el.strokeColor, opacity: el.opacity / 100 }}
       onChange={e => onChange(e.target.value)} onBlur={onDone}
       onKeyDown={e => { if (e.key === 'Escape' || (e.key === 'Enter' && (e.metaKey || e.ctrlKey))) { e.preventDefault(); e.currentTarget.blur() } e.stopPropagation() }} />

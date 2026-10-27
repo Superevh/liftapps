@@ -31,6 +31,8 @@ function liftDev() {
 export default defineConfig({
   base: '/discovery/app/',
   plugins: [react(), liftDev()],
+  // shared/cloud imports react and supabase-js; resolve them from this app's node_modules.
+  resolve: { dedupe: ['react', 'react-dom', '@supabase/supabase-js'] },
   build: { outDir: 'dist/discovery/app', emptyOutDir: true },
   server: { port: 5305, fs: { allow: ['../..'] } },
   preview: { port: 5305 },

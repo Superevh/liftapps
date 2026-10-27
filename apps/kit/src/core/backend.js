@@ -10,6 +10,8 @@
 //   saveSnapshot(id, seq, snapshot)
 //   deleteBoard(id, ownerKey)
 //   subscribe(id, onEvent, onReady) -> { send({ seq, action }), close() }
+//   presence(id, key, onChange) -> { close() }   optional: onChange(keys) with the keys of the
+//                                                 tabs that have this document open right now
 //
 //
 // Lift Apps use the same anonymous document backend as RetroLift (no sign-in).
@@ -57,6 +59,18 @@ function supabaseBackend(url, key) {
         close: () => { closed = true; chP.then(x => x && x.sb.removeChannel(x.ch)).catch(() => {}) },
       }
     },
+    // Who has the document open, from Realtime presence on a channel of its own (nothing is written to the log).
+    presence(id, key, onChange) {
+      let closed = false
+      const chP = getSb().then(sb => {
+        if (closed) return null
+        const ch = sb.channel(`presence:${id}`, { config: { presence: { key } } })
+        ch.on('presence', { event: 'sync' }, () => onChange(Object.keys(ch.presenceState())))
+          .subscribe(status => { if (status === 'SUBSCRIBED') ch.track({ at: Date.now() }).catch(() => {}) })
+        return { sb, ch }
+      }).catch(() => null)
+      return { close: () => { closed = true; chP.then(x => x && x.sb.removeChannel(x.ch)).catch(() => {}) } }
+    },
   }
 }
 
@@ -95,6 +109,28 @@ function mockBackend() {
       ch.onmessage = e => onEvent(e.data)
       setTimeout(onReady, 0)
       return { send: payload => ch.postMessage(payload), close: () => ch.close() }
+    },
+    // Presence in test mode: each tab says hello every few seconds and goodbye when it closes.
+    presence(id, key, onChange) {
+      const ch = new BroadcastChannel(`lift-kit-mock-presence:${id}`)
+      const seen = new Map([[key, Date.now()]])
+      const report = () => {
+        const now = Date.now()
+        for (const [k, at] of seen) if (k !== key && now - at > 12000) seen.delete(k)
+        onChange([...seen.keys()])
+      }
+      const hello = () => ch.postMessage({ key, hi: true })
+      ch.onmessage = ({ data }) => {
+        if (data.bye) seen.delete(data.key)
+        else { if (!seen.has(data.key) && !data.reply) ch.postMessage({ key, hi: true, reply: true }); seen.set(data.key, Date.now()) }
+        report()
+      }
+      const bye = () => ch.postMessage({ key, bye: true })
+      window.addEventListener('pagehide', bye)
+      hello()
+      setTimeout(report, 0)
+      const beat = setInterval(() => { hello(); report() }, 4000)
+      return { close: () => { clearInterval(beat); window.removeEventListener('pagehide', bye); bye(); ch.close() } }
     },
   }
 }

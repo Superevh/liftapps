@@ -1,63 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import { today, addMonths, addDays, toDay, parts, ymd } from './dates.js'
-import { dateRange } from './format.js'
+import { columns, depInfo, initials } from './logic.js'
+import { colorVar } from './store.js'
+import { when } from './format.js'
 import Icon from './icons.jsx'
 
-// Now / Next / Later: the same items grouped for stakeholders.
-export function bucket(it, now, soon) {
-  if (it.status === 'done') return 'done'
-  if (it.status === 'progress' || it.start <= now) return 'now'
-  return it.start <= soon ? 'next' : 'later'
-}
-
-// What changes when an item is dropped into a column. Durations are kept.
-//   Now   → start today (unless it has already started), status "in progress"
-//   Next  → start on the 1st of next month
-//   Later → start on the 1st of the month 4 months from now
-//   Done  → status done, dates unchanged
-// Next / Later also drop "in progress" / "done" back to "planned", otherwise the item would land in Now / Done again.
-export function movePatch(it, col, now = today()) {
-  const dur = toDay(it.end) - toDay(it.start)
-  const at = start => ({ start, end: addDays(start, dur) })
-  const { y, m } = parts(now)
-  const p = {}
-  if (col === 'now') {
-    if (it.start > now) Object.assign(p, at(now))
-    if (it.status !== 'progress') p.status = 'progress'
-  } else if (col === 'next' || col === 'later') {
-    const start = ymd(y, m + (col === 'next' ? 1 : 4), 1)
-    if (it.start !== start) Object.assign(p, at(start))
-    if (it.status === 'progress' || it.status === 'done') p.status = 'planned'
-  } else if (col === 'done') {
-    if (it.status !== 'done') p.status = 'done'
-  }
-  return p
-}
-
-// Explicit order first (set by dragging), then by start date and lane.
-export function columnItems(rm, showDone, now = today()) {
-  const soon = addMonths(now, 3)
-  const laneOrder = new Map(rm.lanes.map((l, i) => [l.id, i]))
-  const has = v => typeof v === 'number'
-  const groups = { now: [], next: [], later: [], done: [] }
-  const sorted = [...rm.items].sort((a, b) => {
-    if (has(a.order) !== has(b.order)) return has(a.order) ? -1 : 1
-    if (has(a.order) && a.order !== b.order) return a.order - b.order
-    if (a.start !== b.start) return a.start < b.start ? -1 : 1
-    return (laneOrder.get(a.laneId) ?? 0) - (laneOrder.get(b.laneId) ?? 0)
-  })
-  for (const it of sorted) groups[bucket(it, now, soon)].push(it)
-  if (!showDone) delete groups.done
-  return groups
-}
-
+// Now / Next / Later: the same items grouped by horizon, for planning conversations and stakeholders.
 const DRAG_PX = 6
 
-export default function Board({ rm, t, showDone, selId, readOnly, onSelect, onMove }) {
+export default function Board({ rm, items, t, showDone, sel, readOnly = false, onSelect, onMove, onAdd }) {
+  const selId = sel?.kind === 'item' ? sel.id : null
+  const late = depInfo(rm).late
   const lanes = new Map(rm.lanes.map(l => [l.id, l]))
   const cols = [['now', t.now, t.nowHint], ['next', t.next, t.nextHint], ['later', t.later, t.laterHint]]
   if (showDone) cols.push(['done', t.doneCol, t.doneHint])
-  const groups = columnItems(rm, showDone)
+  const groups = columns(rm, items, showDone)
   const colOf = id => cols.find(([k]) => groups[k].some(i => i.id === id))?.[0]
 
   const boardRef = useRef(null)
@@ -179,17 +135,15 @@ export default function Board({ rm, t, showDone, selId, readOnly, onSelect, onMo
           <section key={k} className={`col col-${k} ${over ? 'drop-target' : ''}`} aria-label={label} data-col={k}>
             <header><h2>{label}</h2><span className="count">{list.length}</span><p>{hint}</p></header>
             <div className="cards">
-              {list.length === 0 && !over && <p className="empty">{t.empty}</p>}
+              {list.length === 0 && !over && <p className="empty">{t.emptyCol}</p>}
               {list.map((it, idx) => {
                 const lane = lanes.get(it.laneId)
                 return [
                   lineBefore === it.id && <div key="line" className="drop-line" aria-hidden="true" />,
-                  <div key={it.id} data-id={it.id} className={`card st-${it.status} ${selId === it.id ? 'sel' : ''} ${drag?.id === it.id ? 'ghosted' : ''}`} style={{ '--c': lane?.color }}
+                  <div key={it.id} data-id={it.id} className={`card st-${it.status} ${selId === it.id ? 'sel' : ''} ${drag?.id === it.id ? 'ghosted' : ''}`} style={{ '--c': colorVar(lane?.color) }}
                     onPointerDown={e => startDrag(e, it)}>
-                    <button className="card-open" onClick={() => { if (Date.now() - suppressClick.current > 300) onSelect(it.id) }}>
-                      <span className="card-lane"><i />{lane?.name}</span>
-                      <b>{it.title || t.untitledItem}</b>
-                      <span className="card-meta"><span>{dateRange(t, it.start, it.end)}</span><span className={`chip st-${it.status}`}>{t.st[it.status]}</span></span>
+                    <button className="card-open" onClick={() => { if (Date.now() - suppressClick.current > 300) onSelect({ kind: 'item', id: it.id }) }}>
+                      <CardBody it={it} lane={lane} t={t} late={late.has(it.id)} />
                     </button>
                     {!readOnly && (
                       <span className="card-tools">
@@ -216,19 +170,31 @@ export default function Board({ rm, t, showDone, selId, readOnly, onSelect, onMo
               })}
               {lineBefore === 'end' && <div className="drop-line" aria-hidden="true" />}
             </div>
+            {!readOnly && onAdd && <button className="col-add" onClick={() => onAdd(k)}><Icon name="plus" size={14} />{t.add}</button>}
           </section>
         )
       })}
       {dragged && (
         <div className={`card drag-ghost st-${dragged.status}`} aria-hidden="true"
-          style={{ '--c': lanes.get(dragged.laneId)?.color, width: drag.w, transform: `translate(${drag.x}px, ${drag.y}px) rotate(1.5deg)` }}>
-          <span className="card-open">
-            <span className="card-lane"><i />{lanes.get(dragged.laneId)?.name}</span>
-            <b>{dragged.title || t.untitledItem}</b>
-            <span className="card-meta"><span>{dateRange(t, dragged.start, dragged.end)}</span><span className={`chip st-${dragged.status}`}>{t.st[dragged.status]}</span></span>
-          </span>
+          style={{ '--c': colorVar(lanes.get(dragged.laneId)?.color), width: drag.w, transform: `translate(${drag.x}px, ${drag.y}px) rotate(1.5deg)` }}>
+          <span className="card-open"><CardBody it={dragged} lane={lanes.get(dragged.laneId)} t={t} late={late.has(dragged.id)} /></span>
         </div>
       )}
     </div>
+  )
+}
+
+function CardBody({ it, lane, t, late }) {
+  return (
+    <>
+      <span className="card-lane"><i />{lane?.name}{late && <span className="warn-tag" title={t.lateBadge}><Icon name="warn" size={13} sw={2.2} />{t.lateBadge}</span>}</span>
+      <b>{it.title || t.untitledItem}</b>
+      <span className="card-meta">
+        <span className="when">{when(t, it)}</span>
+        {it.owner && <span className="avatar sm" title={it.owner} aria-label={`${t.owner}: ${it.owner}`}>{initials(it.owner)}</span>}
+        <span className={`chip st-${it.status}`}>{t.st[it.status]}{it.progress > 0 && it.status !== 'done' ? ` · ${it.progress}%` : ''}</span>
+      </span>
+      {it.tags.length > 0 && <span className="card-tags">{it.tags.slice(0, 3).map(x => <span key={x} className="tag">{x}</span>)}</span>}
+    </>
   )
 }

@@ -27,6 +27,10 @@
   --font-display: var(--lift-display, "Noto Serif SC", "Songti SC", Georgia, serif);
   color-scheme: light;
 }
+/* English headings: quotes, apostrophes and ellipses come from a Latin serif, so Noto Serif SC's full-width CJK punctuation never shows up in Latin text. Chinese keeps the CJK glyphs. */
+@font-face { font-family: "Lift Latin Punct"; font-weight: 400 600; src: local("Georgia"), local("Noto Serif"), local("DejaVu Serif"), local("Times New Roman"); unicode-range: U+2018-201F, U+2026; }
+@font-face { font-family: "Lift Latin Punct"; font-weight: 700 900; src: local("Georgia Bold"), local("Georgia-Bold"), local("Noto Serif Bold"), local("DejaVu Serif Bold"), local("Times New Roman Bold"); unicode-range: U+2018-201F, U+2026; }
+html:not(:lang(zh)) { --lift-display: "Lift Latin Punct", "Noto Serif SC", "Songti SC", Georgia, serif; }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 html { background: var(--bg); }

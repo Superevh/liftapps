@@ -159,6 +159,7 @@ function AppHome({ app, lang }) {
 }
 
 // app: { key, en/zh: { title, lead, how }, tools: [{ view, icon, kind?, live, en: [name, line], zh: [...], Home, Room? }] }
+// Optional: app.Home replaces the default home; app.noIdentity hides the name chip (anonymous apps); a tool with `hidden: true` stays routable but only shows in the strip while open.
 export function AppShell({ app }) {
   const lang = useLang()
   const t = T[lang]
@@ -172,7 +173,7 @@ export function AppShell({ app }) {
     document.title = tool && !solo ? `${tool[lang][0]} · ${name} · Lift Apps` : `${name} · Lift Apps`
   }, [tool, lang, app.name, solo])
   let page
-  if (!tool) page = <AppHome app={app} lang={lang} />
+  if (!tool) page = app.Home ? <app.Home /> : <AppHome app={app} lang={lang} />
   else if (route.id && tool.Room) page = <tool.Room key={route.id} id={route.id} sub={route.sub} />
   else page = <tool.Home />
   const needsName = tool?.live && !tool.noName && backend && !identity.name
@@ -181,13 +182,13 @@ export function AppShell({ app }) {
       <nav className="subnav no-print" aria-label={t.tools}>
         <div className="subnav-tabs">
           {!solo && <a className={`top-link ${!tool ? 'on' : ''}`} href="#/"><Icon name="home" size={16} /><span className="lbl">{t.home}</span></a>}
-          {app.tools.map(x => (
+          {app.tools.filter(x => !x.hidden || x === tool).map(x => (
             <a key={x.view} className={`top-link ${tool === x ? 'on' : ''}`} href={`#/${x.view}`} aria-current={tool === x ? 'page' : undefined}>
               <Icon name={x.icon} size={16} /><span className="lbl">{x[lang][0]}</span>
             </a>
           ))}
         </div>
-        <Identity />
+        {!app.noIdentity && <Identity />}
       </nav>
       {solo && !route.id && (backend?.kind === 'mock' || !backend) && <p className="tool-note small solo-note">{backend ? t.mock : t.noBackend}</p>}
       <Suspense fallback={<Loading />}>{page}</Suspense>
