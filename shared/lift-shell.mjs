@@ -95,3 +95,11 @@ class LiftBar extends HTMLElement {
   }
 }
 if (!customElements.get("lift-bar")) customElements.define("lift-bar", LiftBar);
+
+// AI云 page counts + feedback button (cookie-free; /aiyun-t.js is the site-wide copy). Loaded once per page.
+if (!document.querySelector("script[src$='/aiyun-t.js']")) {
+  const s = document.createElement("script");
+  s.src = (location.hostname.endsWith("liftapps.com.au") ? "" : "https://liftapps.com.au") + "/aiyun-t.js";
+  s.defer = true; s.dataset.site = "liftapps-app"; s.dataset.lang = getLang();
+  document.head.appendChild(s);
+}

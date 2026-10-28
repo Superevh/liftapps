@@ -86,7 +86,7 @@ function layout(t, { path, title, desc, body, og = "home", jsonld }) {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://ychcvnzxdcrralwcyzsk.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'" />
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}" />
@@ -140,6 +140,7 @@ ${body}
   </div>
 </footer>
 <script src="/site.js" defer></script>
+<script src="/aiyun-t.js" defer data-site="liftapps" data-lang="${t.lang}"></script>
 </body>
 </html>
 `;
