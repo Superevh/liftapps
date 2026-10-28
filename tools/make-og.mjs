@@ -23,7 +23,7 @@ img{position:absolute;left:90px;bottom:48px;height:40px}.u{position:absolute;rig
 const jobs = [];
 for (const lang of ["en", "zh"]) {
   const zh = lang === "zh";
-  jobs.push(["home", lang, page(liftIcon("retro"), 'Lift<span>Apps</span>', zh ? "AI云 Lift 系列" : "by AIYun", zh ? "从目标到复盘，九个工具托举你的团队。" : "From goals to retros, nine tools that lift your team.", zh)]);
+  jobs.push(["home", lang, page(liftIcon("retro"), 'Lift<span>Apps</span>', zh ? "AI云 Lift 系列" : "by AIYUN", zh ? "从目标到复盘，九个工具托举你的团队。" : "From goals to retros, nine tools that lift your team.", zh)]);
   for (const a of APPS) jobs.push([a.key, lang, page(liftIcon(a.key), `${a.word}<span>Lift</span>`, a[lang].label, a[lang].line, zh)]);
 }
 mkdirSync("site/assets/og", { recursive: true });

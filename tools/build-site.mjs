@@ -13,9 +13,9 @@ const T = {
   en: {
     lang: "en", htmlLang: "en", other: "zh", otherLabel: "中文", prefix: "",
     navApps: "Apps", navHow: "How it works", navAbout: "About", openRetro: "Start a retro", skip: "Skip to content",
-    homeTitle: "Lift Apps by AIYun: tools for the whole delivery cycle",
+    homeTitle: "Lift Apps by AIYUN: tools for the whole delivery cycle",
     homeDesc: "Nine light tools for agile teams, from OKRs and product discovery to estimation, meetings, team health and retros. One family, one look, in your browser.",
-    eyebrow: "AIYun · Lift Apps",
+    eyebrow: "AIYUN · Lift Apps",
     h1: 'From goals to retros, nine tools that <span class="lift">lift</span> your team.',
     lede: "One family of light, browser-based tools for agile teams: set goals, shape the product, plan, estimate, run better meetings, check team health and learn from every sprint.",
     ctaPrimary: "Start a free retro", ctaSecondary: "Explore the apps",
@@ -28,10 +28,10 @@ const T = {
     startEyebrow: "Start here", startTitle: "New to Lift? Three good first steps.",
     start: [["retro", "Run your next retro", "Pick a themed template and share the link with the team."], ["estimate", "Estimate the next sprint", "Planning poker with a simultaneous reveal, then a confidence vote."], ["pulse", "Check how the team is doing", "A ten-minute health check every sprint shows the trend."]],
     aboutEyebrow: "About", aboutTitle: "Made by AIYun.",
-    about: ["AIYun (AI云) builds practical AI products. Lift Apps brings the tools an agile team reaches for every week into one calm, consistent family.", "Let AI lift us higher."],
-    footerApps: "Apps", footerNote: "Lift Apps™ by AIYun", rights: "© 2026 AIYun",
+    about: ["AIYUN (AI云) builds practical AI products. Lift Apps brings the tools an agile team reaches for every week into one calm, consistent family.", "Let AI lift us higher."],
+    footerApps: "Apps", footerNote: "Lift Apps™ by AIYUN", rights: "© 2026 AIYUN",
     crumbsHome: "Lift Apps", readMore: "Why it exists ↓", whyEyebrow: "Why", whyTitle: "The problem it solves", whatEyebrow: "What", whatTitle: (w) => `What ${w}Lift does`, howEyebrow: "How", howTitle2: "How it works", summaryEyebrow: "Summary", whatItDoes: "What it does", whereFits: "Where it fits in the cycle", prev: "Previous", next: "Next",
-    openApp: (w) => `Open ${w}Lift`, allApps: "All apps", appTitle: (a) => `${a.word}Lift: ${a.en.label} · Lift Apps by AIYun`,
+    openApp: (w) => `Open ${w}Lift`, allApps: "All apps", appTitle: (a) => `${a.word}Lift: ${a.en.label} · Lift Apps by AIYUN`,
     nfTitle: "This page lifted off.", nfBody: "The page you were looking for isn't here. Try one of the apps instead.", nfHome: "Back to Lift Apps",
     retroNote: "Opens on fun-retro.com, where RetroLift runs today.",
   },
@@ -53,8 +53,8 @@ const T = {
     startEyebrow: "从这里开始", startTitle: "第一次用 Lift？推荐三步。",
     start: [["retro", "开一次复盘", "选一个主题模板，把链接发给团队。"], ["estimate", "估算下个迭代", "计划扑克同时亮牌，再做一次信心投票。"], ["pulse", "看看团队状态", "每个迭代花十分钟做健康检查，就能看到趋势。"]],
     aboutEyebrow: "关于", aboutTitle: "由 AI云 打造。",
-    about: ["AI云（AIYun）专注做实用的 AI 产品。Lift 系列把敏捷团队每周都会用到的工具，整合成一个安静、统一的家族。", "Let AI lift us higher."],
-    footerApps: "应用", footerNote: "Lift Apps™ · AI云出品", rights: "© 2026 AIYun",
+    about: ["AI云专注做实用的 AI 产品。Lift 系列把敏捷团队每周都会用到的工具，整合成一个安静、统一的家族。", "Let AI lift us higher."],
+    footerApps: "应用", footerNote: "Lift Apps™ · AI云出品", rights: "© 2026 AI云",
     crumbsHome: "Lift 系列", readMore: "为什么需要它 ↓", whyEyebrow: "为什么", whyTitle: "它要解决的问题", whatEyebrow: "是什么", whatTitle: (w) => `${w}Lift 能做什么`, howEyebrow: "怎么用", howTitle2: "使用步骤", summaryEyebrow: "总结", whatItDoes: "它能做什么", whereFits: "在交付周期中的位置", prev: "上一个", next: "下一个",
     openApp: (w) => `打开 ${w}Lift`, allApps: "全部应用", appTitle: (a) => `${a.word}Lift：${a.zh.label} · AI云 Lift 系列`,
     nfTitle: "这个页面飞走了。", nfBody: "你要找的页面不在这里，试试下面的应用吧。", nfHome: "回到 Lift 系列",
@@ -95,7 +95,7 @@ function layout(t, { path, title, desc, body, og = "home", jsonld }) {
 <link rel="alternate" hreflang="zh-CN" href="${ORIGIN}${zhPath}" />
 <link rel="alternate" hreflang="x-default" href="${ORIGIN}${enPath}" />
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="Lift Apps by AIYun" />
+<meta property="og:site_name" content="Lift Apps by AIYUN" />
 <meta property="og:title" content="${esc(title)}" />
 <meta property="og:description" content="${esc(desc)}" />
 <meta property="og:url" content="${ORIGIN}${self}" />
@@ -117,7 +117,7 @@ ${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld)}</script
 <a class="skip" href="#main">${t.skip}</a>
 <header class="nav-wrap">
   <nav class="nav wrap" aria-label="Main">
-    <a href="${t.prefix}/" class="logo" aria-label="Lift Apps by AIYun"><img src="/assets/aiyun-mark.png" alt="AIYun" width="91" height="28" /></a>
+    <a href="${t.prefix}/" class="logo" aria-label="Lift Apps by AIYUN"><img src="/assets/aiyun-mark.png" alt="AIYUN" width="91" height="28" /></a>
     <div class="nav-links">
       <a href="${t.prefix}/#apps">${t.navApps}</a>
       <a href="${t.prefix}/#how">${t.navHow}</a>
@@ -133,7 +133,7 @@ ${body}
 <footer class="footer">
   <div class="wrap">
     <div class="footer-grid">
-      <div><img src="/assets/aiyun-mark.png" alt="AIYun" class="footer-logo" width="78" height="24" /><p>${t.footerNote} · Explore · Connect · Create</p></div>
+      <div><img src="/assets/aiyun-mark.png" alt="AIYUN" class="footer-logo" width="78" height="24" /><p>${t.footerNote} · Explore · Connect · Create</p></div>
       <ul class="footer-apps" aria-label="${t.footerApps}">${APPS.map((a) => `<li><a href="${t.prefix}/${a.key}/">${a.word}Lift · ${a[t.lang].label}</a></li>`).join("")}</ul>
     </div>
     <div class="footer-base"><span>${t.rights}</span><a href="${other}" data-lang="${t.other}">${t.other === "zh" ? "中文版" : "English"}</a></div>
@@ -196,7 +196,7 @@ function home(t) {
   </div>
 </section>`;
   return layout(t, { path: "/", title: t.homeTitle, desc: t.homeDesc, body, og: "home",
-    jsonld: { "@context": "https://schema.org", "@type": "Organization", name: "AIYun", url: ORIGIN, logo: `${ORIGIN}/assets/mark.png` } });
+    jsonld: { "@context": "https://schema.org", "@type": "Organization", name: "AIYUN", url: ORIGIN, logo: `${ORIGIN}/assets/mark.png` } });
 }
 
 function appPage(a, i, t) {
@@ -257,7 +257,7 @@ function appPage(a, i, t) {
   </div>
 </section>`;
   return layout(t, { path: `/${a.key}/`, title: t.appTitle(a), desc: L.summary, body, og: a.key,
-    jsonld: { "@context": "https://schema.org", "@type": "SoftwareApplication", name: `${a.word}Lift`, applicationCategory: "BusinessApplication", operatingSystem: "Web", url: `${ORIGIN}${t.prefix}/${a.key}/`, description: L.summary, inLanguage: ["en", "zh-CN"], publisher: { "@type": "Organization", name: "AIYun" } } });
+    jsonld: { "@context": "https://schema.org", "@type": "SoftwareApplication", name: `${a.word}Lift`, applicationCategory: "BusinessApplication", operatingSystem: "Web", url: `${ORIGIN}${t.prefix}/${a.key}/`, description: L.summary, inLanguage: ["en", "zh-CN"], publisher: { "@type": "Organization", name: "AIYUN" } } });
 }
 
 function notFound(t) {
