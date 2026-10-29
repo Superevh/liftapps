@@ -141,6 +141,7 @@ ${body}
 </footer>
 <script src="/site.js" defer></script>
 <script src="/aiyun-t.js" defer data-site="liftapps" data-lang="${t.lang}"></script>
+<script src="/_vercel/insights/script.js" defer></script>
 </body>
 </html>
 `;

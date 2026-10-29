@@ -103,3 +103,9 @@ if (!document.querySelector("script[src$='/aiyun-t.js']")) {
   s.defer = true; s.dataset.site = "liftapps-app"; s.dataset.lang = getLang();
   document.head.appendChild(s);
 }
+// Vercel Web Analytics (cookie-free; only served when the site is hosted on Vercel).
+if (location.hostname.endsWith("liftapps.com.au") && !document.querySelector("script[src='/_vercel/insights/script.js']")) {
+  const v = document.createElement("script");
+  v.src = "/_vercel/insights/script.js"; v.defer = true;
+  document.head.appendChild(v);
+}

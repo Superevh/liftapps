@@ -1,0 +1,6 @@
+{
+  "buildCommand": "node tools/build-all.mjs",
+  "outputDirectory": "dist",
+  "installCommand": "echo no-root-deps",
+  "framework": null
+}
