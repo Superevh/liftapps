@@ -287,5 +287,25 @@ write("sitemap.xml", `<?xml version="1.0" encoding="UTF-8"?>
 ${urls.flatMap((u) => [u, "/zh" + u]).map((u) => { const en = u.replace(/^\/zh/, "") || "/"; return `  <url><loc>${ORIGIN}${u}</loc><xhtml:link rel="alternate" hreflang="en" href="${ORIGIN}${en}"/><xhtml:link rel="alternate" hreflang="zh-CN" href="${ORIGIN}/zh${en}"/></url>`; }).join("\n")}
 </urlset>
 `);
+write("llms.txt", `# Lift Apps
+
+> Lift Apps is a family of nine free browser tools for agile teams, made by AIYUN, a small studio in Australia. No sign-up: people join from a link. Available in English and Chinese.
+
+## Apps
+- [RetroLift](https://fun-retro.com): Retrospectives with voting, action items and team games.
+- [EstimateLift](${ORIGIN}/estimate/): Planning poker.
+- [MeetingLift](${ORIGIN}/meeting/): Meetings and Lean Coffee.
+- [VoteLift](${ORIGIN}/vote/): Live polls and Q&A.
+- [PulseLift](${ORIGIN}/pulse/): Team health checks.
+- [GoalLift](${ORIGIN}/goal/): OKRs.
+- [DiscoveryLift](${ORIGIN}/discovery/): Product discovery.
+- [PlanLift](${ORIGIN}/plan/): Roadmaps.
+- [SketchLift](${ORIGIN}/sketch/): Whiteboard.
+
+## More
+- [Free agile tools](https://fun-retro.com/tools/)
+- [Guides for agile teams](https://aiyun.com.au/guides/)
+- [Chinese home page](${ORIGIN}/zh/)
+`);
 write("robots.txt", `User-agent: *\nAllow: /\nSitemap: ${ORIGIN}/sitemap.xml\n`);
 console.log(`site → ${OUT}: ${urls.length * 2} pages, ${Object.keys(REDIRECTS).length} redirects`);
